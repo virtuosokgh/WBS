@@ -8,6 +8,7 @@ import DescriptionPanel from './components/DescriptionPanel'
 import AddScreenModal from './components/AddScreenModal'
 import LibraryModal, { loadProjects, persistProjects } from './components/LibraryModal'
 import SpecView from './components/SpecView'
+import ScreenListPanel from './components/ScreenListPanel'
 import AutoPlanModal from './components/AutoPlanModal'
 import { exportAsHtml } from './exportHtml'
 import { FlowchartData } from './FlowchartView'
@@ -371,6 +372,15 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
           canEdit={canEdit}
         />
         <div className="app-body">
+          <ScreenListPanel
+            screens={screens}
+            activeScreenId={activeScreenId}
+            onSwitchScreen={handleSwitchScreen}
+            onAddScreen={canEdit ? () => setModalConfig({ mode: 'url' }) : undefined}
+            onRefresh={canEdit ? handleSync : undefined}
+            onRemoveScreen={canEdit ? handleRemoveScreen : undefined}
+            canEdit={canEdit}
+          />
           {activeFrame && showSpec ? (
             <SpecView frame={activeFrame} />
           ) : (
@@ -399,9 +409,6 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
                 onUpdateBadgeSize={canEdit ? handleUpdateBadgeSize : undefined}
                 onDeleteBadge={canEdit ? handleDeleteBadge : undefined}
                 onSwitchScreen={handleSwitchScreen}
-                onAddScreen={canEdit ? () => setModalConfig({ mode: 'url' }) : undefined}
-                onRefresh={canEdit ? handleSync : undefined}
-                onRemoveScreen={canEdit ? handleRemoveScreen : undefined}
               />
             </>
           )}

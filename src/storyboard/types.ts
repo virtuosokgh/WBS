@@ -25,6 +25,8 @@ export interface FigmaFrame {
   figmaUrl: string    // 원본 Figma 링크
   width: number
   height: number
+  pageId?: string
+  pageName?: string
 }
 
 export interface Screen {

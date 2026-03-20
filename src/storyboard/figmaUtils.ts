@@ -43,6 +43,8 @@ export interface FigmaNodeMeta {
   name: string
   width: number
   height: number
+  pageId: string
+  pageName: string
 }
 
 /**
@@ -58,27 +60,27 @@ export async function fetchFigmaNodeMeta(
     const node = data.nodes?.[nodeId]?.document
     if (!node) throw new Error('노드를 찾을 수 없습니다.')
     const bbox = node.absoluteBoundingBox || node.size || { width: 0, height: 0 }
-    return [{ id: node.id, name: node.name, width: bbox.width, height: bbox.height }]
+    return [{ id: node.id, name: node.name, width: bbox.width, height: bbox.height, pageId: '', pageName: '' }]
   } else {
     // 모든 페이지의 프레임 수집 (Section/Group 내부까지, depth=3)
     const data = await figmaFetch(`/v1/files/${fileKey}?depth=3`, token)
     const frames: FigmaNodeMeta[] = []
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const collectFrames = (nodes: any[]) => {
+    const collectFrames = (nodes: any[], pageId: string, pageName: string) => {
       for (const node of nodes) {
         if (node.type === 'FRAME' || node.type === 'COMPONENT') {
           const bbox = node.absoluteBoundingBox || node.size || { width: 0, height: 0 }
-          frames.push({ id: node.id, name: node.name, width: bbox.width, height: bbox.height })
+          frames.push({ id: node.id, name: node.name, width: bbox.width, height: bbox.height, pageId, pageName })
         } else if (node.type === 'SECTION' || node.type === 'GROUP') {
           // 섹션/그룹 안에 있는 프레임도 수집
-          collectFrames(node.children ?? [])
+          collectFrames(node.children ?? [], pageId, pageName)
         }
       }
     }
 
     for (const page of (data.document?.children ?? [])) {
-      collectFrames(page.children ?? [])
+      collectFrames(page.children ?? [], page.id, page.name)
     }
 
     return frames.slice(0, 100)

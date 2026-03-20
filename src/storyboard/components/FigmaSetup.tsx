@@ -43,6 +43,8 @@ export default function FigmaSetup({ onFramesLoaded }: Props) {
           figmaUrl: url.trim(),
           width: meta.width,
           height: meta.height,
+          pageId: meta.pageId || '',
+          pageName: meta.pageName || '',
         }])
       } else {
         // 파일 URL → 전체 프레임 자동 수집 후 각각 별도 화면으로 추가
@@ -63,6 +65,8 @@ export default function FigmaSetup({ onFramesLoaded }: Props) {
             figmaUrl: `https://www.figma.com/file/${parsed.fileKey}?node-id=${f.id.replace(':', '-')}`,
             width: f.width,
             height: f.height,
+            pageId: f.pageId,
+            pageName: f.pageName,
           }))
 
         if (frames.length === 0) throw new Error('가져올 수 있는 프레임이 없습니다.')

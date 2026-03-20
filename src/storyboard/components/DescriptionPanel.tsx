@@ -9,13 +9,10 @@ interface Props {
   selectedBadgeId: string | null
   hoveredBadgeId: string | null
   onSelectBadge: (id: string | null) => void
-  onUpdateDescription: (id: string, desc: string) => void
-  onUpdateBadgeSize: (id: string, size: BadgeSize) => void
-  onDeleteBadge: (id: string) => void
+  onUpdateDescription?: (id: string, desc: string) => void
+  onUpdateBadgeSize?: (id: string, size: BadgeSize) => void
+  onDeleteBadge?: (id: string) => void
   onSwitchScreen: (id: string) => void
-  onAddScreen: () => void
-  onRefresh: () => void
-  onRemoveScreen: (id: string) => void
 }
 
 export default function DescriptionPanel({
@@ -29,9 +26,6 @@ export default function DescriptionPanel({
   onUpdateBadgeSize,
   onDeleteBadge,
   onSwitchScreen,
-  onAddScreen,
-  onRefresh,
-  onRemoveScreen,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftDesc, setDraftDesc] = useState('')
@@ -77,7 +71,7 @@ export default function DescriptionPanel({
   }, [showScreenPicker])
 
   const handleSave = (id: string) => {
-    onUpdateDescription(id, draftDesc)
+    onUpdateDescription?.(id, draftDesc)
     setEditingId(null)
     onSelectBadge(null)   // 저장 후 선택 해제 → 툴바 뱃지 추가 모드로 복귀
   }
@@ -142,84 +136,6 @@ export default function DescriptionPanel({
   return (
     <aside className="desc-panel">
 
-      {/* ── 화면 탭 섹션 ── */}
-      <div className="screen-tabs-section">
-        <div className="screen-tabs-header">
-          <span className="screen-tabs-label">화면</span>
-          <span className="screen-count-badge">{screens.length}</span>
-          <button
-            className="refresh-btn"
-            onClick={onRefresh}
-            title="Figma 프로젝트에서 화면 새로고침"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M3 3v5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            새로고침
-          </button>
-        </div>
-        <div className="screen-tabs-list">
-          {screens.map((screen, idx) => (
-            <div
-              key={screen.id}
-              className={`screen-tab ${screen.id === activeScreenId ? 'active' : ''}`}
-            >
-              <button
-                className="screen-tab-btn"
-                onClick={() => onSwitchScreen(screen.id)}
-                title={screen.frame.name}
-              >
-                <span className="screen-tab-num">{idx + 1}</span>
-                <span className="screen-tab-name">{screen.frame.name}</span>
-                {screen.badges.length > 0 && (
-                  <span className="screen-tab-badge-count">{screen.badges.length}</span>
-                )}
-              </button>
-              <div className="screen-tab-actions">
-                <button
-                  className={`copy-link-btn ${copiedId === screen.id ? 'copied' : ''}`}
-                  onClick={() => handleCopyLink(screen.frame.figmaUrl, screen.id)}
-                  title="Figma 링크 복사"
-                >
-                  {copiedId === screen.id ? (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  ) : (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="1.8"/>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" strokeWidth="1.8"/>
-                    </svg>
-                  )}
-                </button>
-                {screens.length > 1 && (
-                  <button
-                    className="remove-screen-btn"
-                    onClick={() => {
-                      if (confirm(`"${screen.frame.name}" 화면을 삭제하시겠습니까?`)) {
-                        onRemoveScreen(screen.id)
-                      }
-                    }}
-                    title="화면 삭제"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                      <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-          <button className="add-screen-tab-btn" onClick={onAddScreen}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-              <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-            </svg>
-            화면 추가
-          </button>
-        </div>
-      </div>
-
       {/* ── 주석 섹션 ── */}
       <div className="panel-header">
         <h2>주석</h2>
@@ -261,7 +177,7 @@ export default function DescriptionPanel({
                     <button
                       key={size}
                       className={`entry-size-btn ${(badge.size ?? 'M') === size ? 'active' : ''}`}
-                      onClick={e => { e.stopPropagation(); onUpdateBadgeSize(badge.id, size) }}
+                      onClick={e => { e.stopPropagation(); onUpdateBadgeSize?.(badge.id, size) }}
                       title={`크기 ${size}로 변경`}
                     >
                       {size}
@@ -272,7 +188,7 @@ export default function DescriptionPanel({
                   <span className="entry-index">#{idx + 1}</span>
                   <button
                     className="delete-btn"
-                    onClick={e => { e.stopPropagation(); onDeleteBadge(badge.id) }}
+                    onClick={e => { e.stopPropagation(); onDeleteBadge?.(badge.id) }}
                     title="뱃지 삭제"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">

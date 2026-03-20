@@ -106,6 +106,8 @@ export default function AddScreenModal({
           figmaUrl: `https://www.figma.com/file/${projectFileKey}?node-id=${meta.id.replace(':', '-')}`,
           width: meta.width,
           height: meta.height,
+          pageId: meta.pageId,
+          pageName: meta.pageName,
         }))
         .filter(f => f.imageUrl)
 
@@ -132,7 +134,7 @@ export default function AddScreenModal({
         const metas = await fetchFigmaNodeMeta(parsed.fileKey, parsed.nodeId, token)
         const meta = metas[0]
         const imageUrl = await fetchFigmaImageUrl(parsed.fileKey, meta.id, token)
-        onAdd({ id: meta.id, name: meta.name, imageUrl, figmaUrl: url.trim(), width: meta.width, height: meta.height })
+        onAdd({ id: meta.id, name: meta.name, imageUrl, figmaUrl: url.trim(), width: meta.width, height: meta.height, pageId: meta.pageId || '', pageName: meta.pageName || '' })
       } else {
         const list = await fetchFigmaNodeMeta(parsed.fileKey, null, token)
         if (list.length === 0) throw new Error('파일에 프레임이 없습니다.')
@@ -150,7 +152,7 @@ export default function AddScreenModal({
     try {
       const imageUrl = await fetchFigmaImageUrl(urlFileKey, meta.id, token)
       const nodeUrl = `https://www.figma.com/file/${urlFileKey}?node-id=${meta.id.replace(':', '-')}`
-      onAdd({ id: meta.id, name: meta.name, imageUrl, figmaUrl: nodeUrl, width: meta.width, height: meta.height })
+      onAdd({ id: meta.id, name: meta.name, imageUrl, figmaUrl: nodeUrl, width: meta.width, height: meta.height, pageId: meta.pageId || '', pageName: meta.pageName || '' })
     } catch (e) {
       setUrlError(e instanceof Error ? e.message : '이미지를 불러올 수 없습니다.')
     } finally {

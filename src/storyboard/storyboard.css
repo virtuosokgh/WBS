@@ -47,6 +47,25 @@
 .sb-root .app        { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .sb-root .app-body   { display: flex; flex: 1; overflow: hidden; }
 
+/* ScreenListPanel light theme overrides */
+.sb-root .slp-page-tab.active {
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--accent);
+}
+.sb-root .slp-item.active {
+  background: rgba(79, 70, 229, 0.07);
+  border-color: rgba(79, 70, 229, 0.25);
+}
+.sb-root .slp-add-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(79, 70, 229, 0.04);
+}
+.sb-root .slp-refresh-btn:hover {
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--accent);
+}
+
 /* ════════════════════════════════════════════════════
    툴바 오버라이드 (hardcoded dark → light)
 ════════════════════════════════════════════════════ */
