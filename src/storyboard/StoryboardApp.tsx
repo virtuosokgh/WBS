@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { Badge, BadgeSize, Screen, FigmaFrame, SavedProject } from './types'
 import { parseFigmaUrl, fetchFigmaNodeMeta, fetchFigmaImageUrls } from './figmaUtils'
 import FigmaSetup from './components/FigmaSetup'
@@ -10,18 +10,9 @@ import LibraryModal, { loadProjects, persistProjects } from './components/Librar
 import SpecView from './components/SpecView'
 import AutoPlanModal from './components/AutoPlanModal'
 import { exportAsHtml } from './exportHtml'
-import { saveFlowchart, FlowchartData } from './FlowchartView'
+import { FlowchartData } from './FlowchartView'
+import { getStoryboard, upsertStoryboard } from '../lib/db'
 import './storyboard.css'
-
-const CURRENT_KEY = 'sb_current'
-
-function loadCurrentScreens(): Screen[] {
-  try {
-    const raw = localStorage.getItem(CURRENT_KEY)
-    if (raw) return JSON.parse(raw) as Screen[]
-  } catch {}
-  return []
-}
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9)
@@ -34,13 +25,15 @@ interface ModalConfig {
 
 interface Props {
   initialScreenId?: string | null
+  projectId?: string | null
+  canEdit?: boolean
 }
 
-export default function StoryboardApp({ initialScreenId }: Props = {}) {
-  const [screens, setScreens] = useState<Screen[]>(loadCurrentScreens)
-  const [activeScreenId, setActiveScreenId] = useState<string | null>(
-    () => loadCurrentScreens()[0]?.id ?? null
-  )
+export default function StoryboardApp({ initialScreenId, projectId, canEdit = true }: Props = {}) {
+  const [screens, setScreens] = useState<Screen[]>([])
+  const [flowchartData, setFlowchartData] = useState<FlowchartData | null>(null)
+  const [loadingFromDb, setLoadingFromDb] = useState(!!projectId)
+  const [activeScreenId, setActiveScreenId] = useState<string | null>(null)
   const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(null)
   const [hoveredBadgeId, setHoveredBadgeId] = useState<string | null>(null)
   const [pendingBadge, setPendingBadge] = useState<{ label: string; size: BadgeSize } | null>(null)
@@ -51,15 +44,46 @@ export default function StoryboardApp({ initialScreenId }: Props = {}) {
   const [showSpec, setShowSpec] = useState(false)
   const [showAutoPlan, setShowAutoPlan] = useState(false)
 
+  // Load from Supabase on mount
   useEffect(() => {
-    if (screens.length > 0) {
-      localStorage.setItem(CURRENT_KEY, JSON.stringify(screens))
-    } else {
-      localStorage.removeItem(CURRENT_KEY)
+    if (!projectId) {
+      // fallback: localStorage (no project context)
+      try {
+        const raw = localStorage.getItem('sb_current')
+        if (raw) {
+          const s = JSON.parse(raw) as Screen[]
+          setScreens(s)
+          setActiveScreenId(s[0]?.id ?? null)
+        }
+      } catch {}
+      return
     }
-  }, [screens])
+    setLoadingFromDb(true)
+    getStoryboard(projectId).then(({ data }) => {
+      if (data?.screens?.length) {
+        const s = data.screens as Screen[]
+        setScreens(s)
+        setActiveScreenId(s[0]?.id ?? null)
+      }
+      if (data?.flowchart) {
+        setFlowchartData(data.flowchart as FlowchartData)
+      }
+      setLoadingFromDb(false)
+    })
+  }, [projectId])
 
-  // 외부에서 특정 화면으로 이동 요청
+  // Auto-save to Supabase (debounced) when canEdit
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (!projectId || !canEdit || loadingFromDb) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      upsertStoryboard(projectId, screens, undefined)
+    }, 1500)
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
+  }, [screens, projectId, canEdit, loadingFromDb])
+
+  // External screen navigation
   useEffect(() => {
     if (initialScreenId && screens.some(s => s.id === initialScreenId)) {
       setActiveScreenId(initialScreenId)
@@ -254,13 +278,19 @@ export default function StoryboardApp({ initialScreenId }: Props = {}) {
       screens,
     }
     persistProjects([project, ...existing])
+    alert('스냅샷이 라이브러리에 저장되었습니다.')
   }, [screens])
 
-  const handleAutoPlanApply = useCallback((updatedScreens: Screen[], flowchart: FlowchartData) => {
+  const handleAutoPlanApply = useCallback(async (updatedScreens: Screen[], flowchart: FlowchartData) => {
     setScreens(updatedScreens)
-    saveFlowchart(flowchart)
+    setFlowchartData(flowchart)
+    if (projectId) {
+      await upsertStoryboard(projectId, updatedScreens, flowchart)
+    } else {
+      localStorage.setItem('sb_flowchart', JSON.stringify(flowchart))
+    }
     setShowAutoPlan(false)
-  }, [])
+  }, [projectId])
 
   const handleLoadProject = useCallback((project: SavedProject) => {
     if (screens.length > 0 && !confirm('현재 작업을 버리고 저장된 스냅샷을 불러오시겠습니까?')) return
@@ -282,8 +312,30 @@ export default function StoryboardApp({ initialScreenId }: Props = {}) {
     }
   }, [screens, exporting])
 
-  // 첫 화면 설정
+  // Loading state
+  if (loadingFromDb) {
+    return (
+      <div className="sb-root">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af', fontSize: 14 }}>
+          스토리보드 불러오는 중...
+        </div>
+      </div>
+    )
+  }
+
+  // No screens yet
   if (screens.length === 0) {
+    if (!canEdit) {
+      return (
+        <div className="sb-root">
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8, color: '#9ca3af' }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4zM4 14a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3z" stroke="currentColor" strokeWidth="1.5"/></svg>
+            <p style={{ fontSize: 15, fontWeight: 600 }}>스토리보드가 아직 없습니다</p>
+            <p style={{ fontSize: 13 }}>호스트 또는 관리자가 Figma URL을 등록하면 여기서 볼 수 있습니다</p>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="sb-root">
         <FigmaSetup
@@ -305,17 +357,18 @@ export default function StoryboardApp({ initialScreenId }: Props = {}) {
           pendingSize={pendingBadge?.size}
           badgeCount={activeBadges.length}
           selectedBadge={activeBadges.find(b => b.id === selectedBadgeId) ?? null}
-          onAddBadge={handleAddBadge}
+          onAddBadge={canEdit ? handleAddBadge : undefined}
           onCancelPending={() => setPendingBadge(null)}
-          onUpdateBadgeSize={handleUpdateBadgeSize}
+          onUpdateBadgeSize={canEdit ? handleUpdateBadgeSize : undefined}
           onDeselectBadge={() => setSelectedBadgeId(null)}
           onExport={handleExport}
           exporting={exporting}
-          onSave={handleSaveProject}
-          onOpenLibrary={() => setShowLibrary(true)}
+          onSave={canEdit ? handleSaveProject : undefined}
+          onOpenLibrary={canEdit ? () => setShowLibrary(true) : undefined}
           showSpec={showSpec}
           onToggleSpec={() => setShowSpec(v => !v)}
-          onAutoPlan={() => setShowAutoPlan(true)}
+          onAutoPlan={canEdit ? () => setShowAutoPlan(true) : undefined}
+          canEdit={canEdit}
         />
         <div className="app-body">
           {activeFrame && showSpec ? (
@@ -327,11 +380,11 @@ export default function StoryboardApp({ initialScreenId }: Props = {}) {
                   frame={activeFrame}
                   badges={activeBadges}
                   selectedBadgeId={selectedBadgeId}
-                  pendingBadge={pendingBadge}
-                  onBadgePlace={handleBadgePlace}
-                  onBadgeMove={handleBadgeMove}
+                  pendingBadge={canEdit ? pendingBadge : null}
+                  onBadgePlace={canEdit ? handleBadgePlace : () => {}}
+                  onBadgeMove={canEdit ? handleBadgeMove : () => {}}
                   onBadgeSelect={setSelectedBadgeId}
-                  onBadgeSizeChange={handleUpdateBadgeSize}
+                  onBadgeSizeChange={canEdit ? handleUpdateBadgeSize : undefined}
                   onBadgeHover={setHoveredBadgeId}
                 />
               )}
@@ -342,13 +395,13 @@ export default function StoryboardApp({ initialScreenId }: Props = {}) {
                 selectedBadgeId={selectedBadgeId}
                 hoveredBadgeId={hoveredBadgeId}
                 onSelectBadge={setSelectedBadgeId}
-                onUpdateDescription={handleUpdateDescription}
-                onUpdateBadgeSize={handleUpdateBadgeSize}
-                onDeleteBadge={handleDeleteBadge}
+                onUpdateDescription={canEdit ? handleUpdateDescription : undefined}
+                onUpdateBadgeSize={canEdit ? handleUpdateBadgeSize : undefined}
+                onDeleteBadge={canEdit ? handleDeleteBadge : undefined}
                 onSwitchScreen={handleSwitchScreen}
-                onAddScreen={() => setModalConfig({ mode: 'url' })}
-                onRefresh={handleSync}
-                onRemoveScreen={handleRemoveScreen}
+                onAddScreen={canEdit ? () => setModalConfig({ mode: 'url' }) : undefined}
+                onRefresh={canEdit ? handleSync : undefined}
+                onRemoveScreen={canEdit ? handleRemoveScreen : undefined}
               />
             </>
           )}

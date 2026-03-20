@@ -107,11 +107,31 @@ export async function getProjectMembers(projectId) {
   return { data: data.map(d => ({ ...d, user: profileMap[d.user_id] || null })), error: null }
 }
 
-export async function inviteUserToProject(projectId, userId, invitedBy) {
+export async function inviteUserToProject(projectId, userId, invitedBy, role = '멤버') {
   const { error } = await supabase
     .from('project_members')
-    .insert({ project_id: projectId, user_id: userId, invited_by: invitedBy, status: 'pending' })
+    .insert({ project_id: projectId, user_id: userId, invited_by: invitedBy, status: 'pending', role })
   return { error }
+}
+
+export async function updateMemberRole(projectId, userId, role) {
+  const { error } = await supabase
+    .from('project_members')
+    .update({ role })
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+  return { error }
+}
+
+export async function getUserProjectRole(projectId, userId) {
+  const { data } = await supabase
+    .from('project_members')
+    .select('role')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .eq('status', 'accepted')
+    .maybeSingle()
+  return data?.role || '멤버'
 }
 
 export async function getParticipatingProjects(userId) {
@@ -274,6 +294,34 @@ export async function updateTaskLinks(id, updates) {
 export async function updateTaskStatus(id, status) {
   const { error } = await supabase.from('tasks').update({ status }).eq('id', id)
   return { error }
+}
+
+// ─── STORYBOARD ────────────────────────────────────────────
+export async function getStoryboard(projectId) {
+  const { data, error } = await supabase
+    .from('storyboards')
+    .select('screens, flowchart')
+    .eq('project_id', projectId)
+    .maybeSingle()
+  return { data, error }
+}
+
+export async function upsertStoryboard(projectId, screens, flowchart) {
+  const payload = { project_id: projectId, updated_at: new Date().toISOString() }
+  if (screens !== undefined) payload.screens = screens
+  if (flowchart !== undefined) payload.flowchart = flowchart
+
+  // Try update first, then insert if not exists
+  const { data: existing } = await supabase
+    .from('storyboards').select('project_id').eq('project_id', projectId).maybeSingle()
+
+  if (existing) {
+    const { error } = await supabase.from('storyboards').update(payload).eq('project_id', projectId)
+    return { error }
+  } else {
+    const { error } = await supabase.from('storyboards').insert({ ...payload, screens: screens ?? [], flowchart: flowchart ?? {} })
+    return { error }
+  }
 }
 
 // ─── FRIENDS ───────────────────────────────────────────────

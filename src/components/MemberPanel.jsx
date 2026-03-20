@@ -1,28 +1,37 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Trash2, User, UserPlus } from 'lucide-react'
-import { getTeamMembers, addTeamMember, updateTeamMember, deleteTeamMember, getProjectMembers, inviteUserToProject, getFriends } from '../lib/db'
-import { ROLES, ROLE_COLORS } from '../utils/helpers'
+import { UserPlus, Trash2, ChevronDown } from 'lucide-react'
+import { getProjectMembers, inviteUserToProject, getFriends, removeProjectMember, updateMemberRole } from '../lib/db'
 import Modal from './Modal'
 
+const PERMISSION_ROLES = ['관리자', '멤버']
+
+const ROLE_STYLE = {
+  '호스트':  'bg-indigo-100 text-indigo-700',
+  '관리자':  'bg-amber-100 text-amber-700',
+  '멤버':    'bg-gray-100 text-gray-600',
+}
+
+const ROLE_DESC = {
+  '관리자': '프로젝트 삭제 제외 모두 수정 가능',
+  '멤버':   '뷰만 가능 (수정 불가)',
+}
+
 export default function MemberPanel({ projectId, user, isOwner }) {
-  const [members, setMembers] = useState([])
-  const [projectUsers, setProjectUsers] = useState([]) // 초대된 시스템 유저
+  const [projectUsers, setProjectUsers] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
-  const [editMember, setEditMember] = useState(null)
-  const [form, setForm] = useState({ name: '', role: 'FE', email: '' })
   const [friends, setFriends] = useState([])
   const [inviting, setInviting] = useState(null)
+  const [inviteRole, setInviteRole] = useState('멤버')
+  const [changingRole, setChangingRole] = useState(null) // userId being changed
+  const [removing, setRemoving] = useState(null)
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
-    const [{ data: m }, { data: pu }, { data: f }] = await Promise.all([
-      getTeamMembers(projectId),
+    const [{ data: pu }, { data: f }] = await Promise.all([
       getProjectMembers(projectId),
       getFriends(user.id),
     ])
-    setMembers(m || [])
     setProjectUsers(pu || [])
     setFriends(f || [])
     setLoading(false)
@@ -30,49 +39,31 @@ export default function MemberPanel({ projectId, user, isOwner }) {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  function openCreate() {
-    setEditMember(null)
-    setForm({ name: '', role: 'FE', email: '' })
-    setShowModal(true)
-  }
-
-  function openEdit(member) {
-    setEditMember(member)
-    setForm({ name: member.name, role: member.role, email: member.email || '' })
-    setShowModal(true)
-  }
-
-  async function handleSave() {
-    if (!form.name.trim()) return
-    if (editMember) {
-      const { data } = await updateTeamMember(editMember.id, form)
-      if (data) setMembers(m => m.map(x => x.id === editMember.id ? data : x))
-    } else {
-      const { data } = await addTeamMember(projectId, form)
-      if (data) setMembers(m => [...m, data])
-    }
-    setShowModal(false)
-  }
-
-  async function handleDelete(id) {
-    await deleteTeamMember(id)
-    setMembers(m => m.filter(x => x.id !== id))
-  }
-
   async function handleInvite(friendId) {
     setInviting(friendId)
-    await inviteUserToProject(projectId, friendId, user.id)
+    await inviteUserToProject(projectId, friendId, user.id, inviteRole)
     setInviting(null)
     setShowInviteModal(false)
     fetchAll()
   }
 
-  const byRole = ROLES.reduce((acc, role) => {
-    acc[role] = members.filter(m => m.role === role)
-    return acc
-  }, {})
+  async function handleRoleChange(userId, newRole) {
+    setChangingRole(userId)
+    await updateMemberRole(projectId, userId, newRole)
+    setProjectUsers(prev => prev.map(pu =>
+      pu.user_id === userId ? { ...pu, role: newRole } : pu
+    ))
+    setChangingRole(null)
+  }
 
-  // 이미 초대된 친구 제외
+  async function handleRemove(userId) {
+    if (!confirm('이 멤버를 프로젝트에서 내보내시겠습니까?')) return
+    setRemoving(userId)
+    await removeProjectMember(projectId, userId)
+    setProjectUsers(prev => prev.filter(pu => pu.user_id !== userId))
+    setRemoving(null)
+  }
+
   const invitedIds = new Set([...projectUsers.map(pu => pu.user_id), user.id])
   const invitableFriends = friends.filter(f => !invitedIds.has(f.id))
 
@@ -83,151 +74,90 @@ export default function MemberPanel({ projectId, user, isOwner }) {
   )
 
   return (
-    <div className="space-y-8">
-      {/* 프로젝트 참여자 (시스템 유저) */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-900">프로젝트 참여자</h3>
-          {isOwner && (
-            <button
-              onClick={() => setShowInviteModal(true)}
-              className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-            >
-              <UserPlus size={15} />
-              친구 초대
-            </button>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          {/* 소유자 */}
-          <div className="flex items-center justify-between bg-indigo-50 rounded-lg px-3 py-2 border border-indigo-100">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-indigo-500 text-white text-xs font-bold flex items-center justify-center">
-                {(user.user_metadata?.name || user.email)[0].toUpperCase()}
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-800">{user.user_metadata?.name || '나'}</div>
-                <div className="text-xs text-gray-400">{user.email}</div>
-              </div>
-            </div>
-            <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium">소유자</span>
-          </div>
-
-          {/* 초대된 멤버들 */}
-          {projectUsers.map(pu => (
-            <div key={pu.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 group">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-gray-200 text-gray-600 text-xs font-bold flex items-center justify-center">
-                  {(pu.user?.name || pu.user?.email || '?')[0].toUpperCase()}
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-800">{pu.user?.name || '-'}</div>
-                  <div className="text-xs text-gray-400">{pu.user?.email}</div>
-                </div>
-              </div>
-              <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full font-medium">멤버</span>
-            </div>
-          ))}
-
-          {projectUsers.length === 0 && (
-            <p className="text-xs text-gray-400 italic px-1">초대된 참여자가 없습니다</p>
-          )}
-        </div>
-      </div>
-
-      {/* WBS 담당자 */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-900">WBS 담당자 ({members.length}명)</h3>
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold text-gray-900">프로젝트 참여자</h3>
+        {isOwner && (
           <button
-            onClick={openCreate}
+            onClick={() => setShowInviteModal(true)}
             className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
           >
-            <Plus size={15} />
-            담당자 추가
+            <UserPlus size={15} />
+            친구 초대
           </button>
-        </div>
-
-        {members.length === 0 ? (
-          <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-            <User size={32} className="mx-auto mb-2 opacity-30" />
-            <p className="text-sm">등록된 담당자가 없습니다</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {ROLES.map(role => {
-              const roleMembers = byRole[role]
-              if (!roleMembers?.length) return null
-              return (
-                <div key={role}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[role]}`}>{role}</span>
-                    <span className="text-xs text-gray-400">{roleMembers.length}명</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {roleMembers.map(member => (
-                      <MemberRow key={member.id} member={member} onEdit={() => openEdit(member)} onDelete={() => handleDelete(member.id)} />
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
         )}
       </div>
 
-      {/* 담당자 추가/수정 Modal */}
-      {showModal && (
-        <Modal
-          title={editMember ? '담당자 수정' : '담당자 추가'}
-          onClose={() => setShowModal(false)}
-          onConfirm={handleSave}
-          confirmLabel={editMember ? '저장' : '추가'}
-          confirmDisabled={!form.name.trim()}
-          size="sm"
-        >
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">이름 <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="이름 입력"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                autoFocus
-              />
+      <div className="space-y-2">
+        {/* 소유자 (호스트) */}
+        <div className="flex items-center justify-between bg-indigo-50 rounded-lg px-3 py-2.5 border border-indigo-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-indigo-500 text-white text-xs font-bold flex items-center justify-center">
+              {(user.user_metadata?.name || user.email)[0].toUpperCase()}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">직무</label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {ROLES.map(role => (
-                  <button
-                    key={role}
-                    onClick={() => setForm(f => ({ ...f, role }))}
-                    className={`py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                      form.role === role ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    {role}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">이메일 (선택)</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="email@example.com"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+              <div className="text-sm font-medium text-gray-800">{user.user_metadata?.name || '나'}</div>
+              <div className="text-xs text-gray-400">{user.email}</div>
             </div>
           </div>
-        </Modal>
-      )}
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_STYLE['호스트']}`}>호스트</span>
+        </div>
+
+        {/* 초대된 멤버들 */}
+        {projectUsers.map(pu => (
+          <div key={pu.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 group">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-gray-200 text-gray-600 text-xs font-bold flex items-center justify-center">
+                {(pu.user?.name || pu.user?.email || '?')[0].toUpperCase()}
+              </div>
+              <div>
+                <div className="text-sm font-medium text-gray-800">{pu.user?.name || '-'}</div>
+                <div className="text-xs text-gray-400">{pu.user?.email}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {isOwner ? (
+                <RoleSelector
+                  value={pu.role || '멤버'}
+                  onChange={newRole => handleRoleChange(pu.user_id, newRole)}
+                  loading={changingRole === pu.user_id}
+                />
+              ) : (
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_STYLE[pu.role || '멤버']}`}>
+                  {pu.role || '멤버'}
+                </span>
+              )}
+              {isOwner && (
+                <button
+                  onClick={() => handleRemove(pu.user_id)}
+                  disabled={removing === pu.user_id}
+                  className="p-1.5 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
+                  title="멤버 내보내기"
+                >
+                  <Trash2 size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {projectUsers.length === 0 && (
+          <p className="text-xs text-gray-400 italic px-1 py-2">초대된 참여자가 없습니다</p>
+        )}
+      </div>
+
+      {/* 권한 안내 */}
+      <div className="mt-6 p-3 bg-gray-50 rounded-lg border border-gray-100">
+        <p className="text-xs font-semibold text-gray-500 mb-2">권한 안내</p>
+        <div className="space-y-1.5">
+          {[['호스트', '모든 것을 컨트롤할 수 있음'], ['관리자', ROLE_DESC['관리자']], ['멤버', ROLE_DESC['멤버']]].map(([role, desc]) => (
+            <div key={role} className="flex items-center gap-2">
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${ROLE_STYLE[role]}`}>{role}</span>
+              <span className="text-xs text-gray-500">{desc}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* 친구 초대 Modal */}
       {showInviteModal && (
@@ -236,6 +166,27 @@ export default function MemberPanel({ projectId, user, isOwner }) {
           onClose={() => setShowInviteModal(false)}
           size="sm"
         >
+          {/* 권한 선택 */}
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-gray-600 mb-2">초대 권한 선택</p>
+            <div className="flex gap-2">
+              {PERMISSION_ROLES.map(role => (
+                <button
+                  key={role}
+                  onClick={() => setInviteRole(role)}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
+                    inviteRole === role
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  <div>{role}</div>
+                  <div className="text-xs font-normal opacity-70 mt-0.5">{ROLE_DESC[role]}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {invitableFriends.length === 0 ? (
             <div className="text-center py-6 text-gray-400">
               <UserPlus size={32} className="mx-auto mb-2 opacity-30" />
@@ -272,30 +223,31 @@ export default function MemberPanel({ projectId, user, isOwner }) {
   )
 }
 
-function MemberRow({ member, onEdit, onDelete }) {
+function RoleSelector({ value, onChange, loading }) {
+  const [open, setOpen] = useState(false)
   return (
-    <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 group">
-      <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
-          {member.name[0]}
+    <div className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        disabled={loading}
+        className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border transition-colors ${ROLE_STYLE[value]} border-transparent hover:border-current disabled:opacity-50`}
+      >
+        {loading ? '...' : value}
+        <ChevronDown size={10} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-100 z-10 min-w-[120px]">
+          {PERMISSION_ROLES.map(role => (
+            <button
+              key={role}
+              onClick={() => { onChange(role); setOpen(false) }}
+              className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 font-medium ${value === role ? 'text-indigo-600' : 'text-gray-700'}`}
+            >
+              {role}
+            </button>
+          ))}
         </div>
-        <div>
-          <div className="text-sm font-medium text-gray-800">{member.name}</div>
-          {member.email && <div className="text-xs text-gray-400">{member.email}</div>}
-        </div>
-      </div>
-      <div className="flex items-center gap-1">
-        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${ROLE_COLORS[member.role] || 'bg-gray-100 text-gray-600'}`}>{member.role}</span>
-        <button onClick={onEdit} className="ml-1 p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-        </button>
-        <button onClick={onDelete} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Trash2 size={12} />
-        </button>
-      </div>
+      )}
     </div>
   )
 }

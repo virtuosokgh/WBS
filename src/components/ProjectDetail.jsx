@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { ArrowLeft, Users, List, BarChart2, Layout, Pencil, Trash2, LogOut, Check, X, Layers, GitBranch, ChevronDown } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { formatDate, getDday, STATUS_OPTIONS } from '../utils/helpers'
-import { updateProject, deleteProject } from '../lib/db'
+import { updateProject, deleteProject, getUserProjectRole } from '../lib/db'
 import WBSTable from './WBSTable'
 import MemberPanel from './MemberPanel'
 import GanttView from './GanttView'
@@ -64,6 +64,7 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
   }
 
   const [project, setProject] = useState(null)
+  const [userRole, setUserRole] = useState(null) // '호스트' | '관리자' | '멤버'
   const [loading, setLoading] = useState(true)
 
   // 이름 인라인 편집
@@ -78,8 +79,19 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
 
   useEffect(() => {
     supabase.from('projects').select('*').eq('id', projectId).single()
-      .then(({ data }) => { setProject(data); setLoading(false) })
-  }, [projectId])
+      .then(async ({ data }) => {
+        setProject(data)
+        if (data) {
+          if (data.owner_id === user.id) {
+            setUserRole('호스트')
+          } else {
+            const role = await getUserProjectRole(projectId, user.id)
+            setUserRole(role)
+          }
+        }
+        setLoading(false)
+      })
+  }, [projectId, user.id])
 
   useEffect(() => {
     if (editingName && nameInputRef.current) {
@@ -140,6 +152,7 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
   )
 
   const isOwner = project.owner_id === user.id
+  const canEdit = userRole === '호스트' || userRole === '관리자'
   const dday = getDday(project.end_date)
 
   return (
@@ -186,10 +199,12 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
               ) : (
                 <div className="flex items-center gap-1.5 group">
                   <h1 className="font-bold text-gray-900 text-lg truncate">{project.name}</h1>
-                  {!isOwner && (
-                    <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded flex-shrink-0">참여 중</span>
+                  {userRole && userRole !== '호스트' && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${
+                      userRole === '관리자' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+                    }`}>{userRole}</span>
                   )}
-                  {isOwner && (
+                  {canEdit && (
                     <button
                       onClick={startEditName}
                       className="p-1 rounded-md text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
@@ -221,7 +236,7 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
 
             {/* 액션 버튼 */}
             <div className="flex items-center gap-1 flex-shrink-0">
-              {isOwner && !editingName && (
+              {userRole === '호스트' && !editingName && (
                 <>
                   {/* 삭제 버튼 */}
                   {confirmDelete ? (
@@ -303,13 +318,13 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
 
       {/* Content */}
       <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
-        {activeTab === 'wbs' && <WBSTable projectId={projectId} />}
-        {activeTab === 'gantt' && <GanttView projectId={projectId} onGoToScreen={goToScreen} />}
+        {activeTab === 'wbs' && <WBSTable projectId={projectId} canEdit={canEdit} />}
+        {activeTab === 'gantt' && <GanttView projectId={projectId} onGoToScreen={goToScreen} canEdit={canEdit} />}
         {activeTab === 'planning' && activeSub === 'storyboard' && (
-          <StoryboardView projectId={projectId} projectName={project?.name} initialScreenId={targetScreenId} />
+          <StoryboardView projectId={projectId} projectName={project?.name} initialScreenId={targetScreenId} canEdit={canEdit} />
         )}
         {activeTab === 'planning' && activeSub === 'flowchart' && (
-          <FlowchartView />
+          <FlowchartView projectId={projectId} />
         )}
         {activeTab === 'members' && <MemberPanel projectId={projectId} user={user} isOwner={isOwner} />}
       </div>

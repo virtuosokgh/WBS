@@ -4,7 +4,7 @@ import { getTasks, createTask, updateTask, deleteTask, updateTaskStatus, getProj
 import { STATUS_OPTIONS, ROLE_COLORS, getStatusInfo, getPriorityInfo, formatDate, getDday } from '../utils/helpers'
 import TaskModal from './TaskModal'
 
-export default function WBSTable({ projectId }) {
+export default function WBSTable({ projectId, canEdit = true }) {
   const [tasks, setTasks] = useState([])
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -100,22 +100,26 @@ export default function WBSTable({ projectId }) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-gray-900">작업 목록 ({tasks.length}개)</h3>
-        <button
-          onClick={() => openCreate(null)}
-          className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-        >
-          <Plus size={15} />
-          작업 추가
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => openCreate(null)}
+            className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+          >
+            <Plus size={15} />
+            작업 추가
+          </button>
+        )}
       </div>
 
       {tasks.length === 0 ? (
         <div className="text-center py-16 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
           <Plus size={32} className="mx-auto mb-2 opacity-30" />
           <p className="text-sm">작업이 없습니다</p>
-          <button onClick={() => openCreate(null)} className="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
-            첫 번째 작업 추가하기
-          </button>
+          {canEdit && (
+            <button onClick={() => openCreate(null)} className="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+              첫 번째 작업 추가하기
+            </button>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -144,10 +148,10 @@ export default function WBSTable({ projectId }) {
                   collapsed={collapsed}
                   members={members}
                   onToggle={id => setCollapsed(c => ({ ...c, [id]: !c[id] }))}
-                  onEdit={openEdit}
-                  onDelete={handleDelete}
-                  onStatusChange={handleStatusChange}
-                  onAddChild={openCreate}
+                  onEdit={canEdit ? openEdit : null}
+                  onDelete={canEdit ? handleDelete : null}
+                  onStatusChange={canEdit ? handleStatusChange : null}
+                  onAddChild={canEdit ? openCreate : null}
                 />
               ))}
             </tbody>
@@ -202,7 +206,7 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
                 {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
               </button>
             ) : <span className="w-3.5 flex-shrink-0" />}
-            <button onClick={() => onEdit(task)} className="text-left text-gray-800 hover:text-indigo-600 font-medium truncate max-w-[300px]">
+            <button onClick={() => onEdit?.(task)} className="text-left text-gray-800 hover:text-indigo-600 font-medium truncate max-w-[300px]">
               {task.name}
             </button>
             {task.description && (
@@ -226,8 +230,9 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
         <td className="py-2 px-3">
           <select
             value={task.status || 'todo'}
-            onChange={e => onStatusChange(task.id, e.target.value)}
-            className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400 ${status.color}`}
+            onChange={e => onStatusChange?.(task.id, e.target.value)}
+            disabled={!onStatusChange}
+            className={`text-xs px-2 py-1 rounded-full font-medium border-0 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${status.color} ${onStatusChange ? 'cursor-pointer' : 'cursor-default opacity-80'}`}
           >
             {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
@@ -251,18 +256,18 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
         </td>
         <td className="py-2 px-3">
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={() => onAddChild(task.id)} className="p-1 rounded hover:bg-indigo-50 text-gray-400 hover:text-indigo-600" title="하위 작업 추가">
+            {onAddChild && <button onClick={() => onAddChild(task.id)} className="p-1 rounded hover:bg-indigo-50 text-gray-400 hover:text-indigo-600" title="하위 작업 추가">
               <Plus size={13} />
-            </button>
-            <button onClick={() => onEdit(task)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+            </button>}
+            {onEdit && <button onClick={() => onEdit(task)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
-            </button>
-            <button onClick={() => onDelete(task.id)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
+            </button>}
+            {onDelete && <button onClick={() => onDelete(task.id)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
               <Trash2 size={13} />
-            </button>
+            </button>}
           </div>
         </td>
       </tr>

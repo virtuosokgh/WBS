@@ -7,17 +7,18 @@ interface Props {
   pendingSize?: BadgeSize
   badgeCount: number
   selectedBadge?: Badge | null
-  onAddBadge: (label: string, size: BadgeSize) => void
+  onAddBadge?: (label: string, size: BadgeSize) => void
   onCancelPending: () => void
   onUpdateBadgeSize?: (id: string, size: BadgeSize) => void
   onDeselectBadge?: () => void
   onExport: () => void
   exporting?: boolean
-  onSave: () => void
-  onOpenLibrary: () => void
+  onSave?: () => void
+  onOpenLibrary?: () => void
   showSpec?: boolean
   onToggleSpec?: () => void
-  onAutoPlan: () => void
+  onAutoPlan?: () => void
+  canEdit?: boolean
 }
 
 export default function Toolbar({
@@ -36,6 +37,7 @@ export default function Toolbar({
   showSpec = false,
   onToggleSpec,
   onAutoPlan,
+  canEdit = true,
 }: Props) {
   const [input, setInput] = useState('')
   const [selectedSize, setSelectedSize] = useState<BadgeSize>('M')
@@ -67,7 +69,9 @@ export default function Toolbar({
       </div>
 
       <div className="toolbar-center">
-        {pendingLabel ? (
+        {!canEdit ? (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>뷰 전용 모드</span>
+        ) : pendingLabel ? (
           /* State B: 뱃지 배치 대기 중 */
           <div className="pending-notice">
             <div
@@ -170,19 +174,23 @@ export default function Toolbar({
       </div>
 
       <div className="toolbar-actions">
-        <button className="btn-ghost save" onClick={onSave} title="현재 스토리보드 저장">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M17 21v-8H7v8M7 3v5h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          저장
-        </button>
-        <button className="btn-ghost library" onClick={onOpenLibrary} title="저장된 스토리보드 라이브러리">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M3 5a2 2 0 012-2h4a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM13 5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM13 15a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          라이브러리
-        </button>
+        {canEdit && onSave && (
+          <button className="btn-ghost save" onClick={onSave} title="현재 스토리보드 저장">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M17 21v-8H7v8M7 3v5h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            저장
+          </button>
+        )}
+        {canEdit && onOpenLibrary && (
+          <button className="btn-ghost library" onClick={onOpenLibrary} title="저장된 스토리보드 라이브러리">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M3 5a2 2 0 012-2h4a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM13 5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM13 15a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            라이브러리
+          </button>
+        )}
         <div className="toolbar-divider" />
         <button
           className={`btn-ghost spec-toggle ${showSpec ? 'active' : ''}`}
@@ -198,7 +206,7 @@ export default function Toolbar({
           {showSpec ? '스토리보드 보기' : '디자인 스펙 보기'}
         </button>
         <div className="toolbar-divider" />
-        <button className="btn-ghost" onClick={onExport} disabled={exporting} title="개발자용 HTML 뷰어 내보내기">
+        <button className="btn-ghost" onClick={onExport} disabled={exporting} title="공유 파일 내보내기">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>

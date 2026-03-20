@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react'
+import { getStoryboard } from '../lib/db'
 import './FlowchartView.css'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -95,8 +97,28 @@ function getTypeColor(type: string): string {
 }
 
 // ── FlowchartView Component ───────────────────────────────────────────────────
-export default function FlowchartView() {
-  const data = loadFlowchart()
+export default function FlowchartView({ projectId }: { projectId?: string }) {
+  const [data, setData] = useState<FlowchartData | null>(() => loadFlowchart())
+  const [loading, setLoading] = useState(!!projectId)
+
+  useEffect(() => {
+    if (!projectId) return
+    setLoading(true)
+    getStoryboard(projectId).then(({ data: sb }) => {
+      if (sb?.flowchart?.nodes?.length) {
+        setData(sb.flowchart as FlowchartData)
+      }
+      setLoading(false)
+    })
+  }, [projectId])
+
+  if (loading) {
+    return (
+      <div className="fc-wrap" style={{ minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 24, height: 24, border: '2px solid #e5e7eb', borderTopColor: '#4f46e5', borderRadius: '50%', animation: 'fc-spin 0.8s linear infinite' }} />
+      </div>
+    )
+  }
 
   if (!data || data.nodes.length === 0) {
     return (
