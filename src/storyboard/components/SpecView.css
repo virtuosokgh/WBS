@@ -1,0 +1,284 @@
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.spec-view {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* Canvas area (left) */
+.sv-canvas-area {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle, rgba(79,70,229,0.03) 0%, transparent 60%),
+    repeating-conic-gradient(#F3F4F6 0% 25%, #FFFFFF 0% 50%) 0 0 / 24px 24px;
+  padding: 32px;
+}
+
+/* Wrapper that shrinks to image size */
+.sv-image-outer {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.sv-img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 200px);
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0,0,0,0.06);
+  background: #fff;
+  opacity: 0;
+  transition: opacity 0.3s;
+  user-select: none;
+  pointer-events: none;
+}
+.sv-img.loaded { opacity: 1; }
+
+/* ── Overlay ─────────────────────────────────────────────────────────────── */
+.sv-overlay {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+}
+
+/* Node highlight boxes (% positioned) */
+.sv-rect {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+  border-radius: 1px;
+}
+.sv-rect.hovered {
+  outline: 2px solid #4353ff;
+  background: rgba(67, 83, 255, 0.07);
+}
+.sv-rect.selected {
+  outline: 2px solid #e3342f;
+  background: rgba(227, 52, 47, 0.06);
+}
+.sv-rect.parent {
+  outline: 1px dashed rgba(67, 83, 255, 0.45);
+  background: transparent;
+}
+
+/* ── Spacing chips ────────────────────────────────────────────────────────── */
+.spec-chip {
+  position: absolute;
+  background: #4353ff;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  padding: 2px 5px;
+  border-radius: 3px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  line-height: 1.4;
+}
+
+.spec-spacing-line {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+}
+.spec-spacing-line.vertical {
+  border-left: 1px dashed rgba(67, 83, 255, 0.6);
+}
+.spec-spacing-line.horizontal {
+  border-top: 1px dashed rgba(67, 83, 255, 0.6);
+}
+
+/* ── Node tooltip ────────────────────────────────────────────────────────── */
+.sv-tooltip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(15, 15, 20, 0.88);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 5px;
+  padding: 3px 8px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 20;
+  font-size: 11px;
+  color: #e2e8f0;
+  max-width: 240px;
+  overflow: hidden;
+}
+.sv-tooltip-type {
+  font-weight: 700;
+  font-size: 9px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.sv-tooltip-size {
+  font-size: 10px;
+  color: #94a3b8;
+  flex-shrink: 0;
+  font-family: 'Menlo', 'Monaco', monospace;
+}
+
+/* ── Loading badge ──────────────────────────────────────────────────────── */
+.sv-loading-badge {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(79, 70, 229, 0.9);
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+/* ── Side Panel ──────────────────────────────────────────────────────────── */
+.sv-side-panel {
+  width: 260px;
+  flex-shrink: 0;
+  border-left: 1px solid #e5e7eb;
+  overflow-y: auto;
+  background: #fff;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.sv-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
+}
+.sv-empty-sub { font-size: 11px; opacity: 0.65; }
+.sv-spinner {
+  width: 18px; height: 18px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: sv-spin 0.8s linear infinite;
+}
+@keyframes sv-spin { to { transform: rotate(360deg); } }
+
+.sv-hovered-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #374151;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Props display ───────────────────────────────────────────────────────── */
+.sv-props { padding: 0; }
+
+.sv-node-header {
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+.sv-type-badge {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.sv-node-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sv-parent-name {
+  font-size: 10px;
+  color: #9ca3af;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sv-section { margin-bottom: 2px; }
+.sv-section-title {
+  padding: 6px 14px 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #9ca3af;
+  letter-spacing: 0.06em;
+  background: #f9fafb;
+  border-top: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f3f4f6;
+}
+.sv-row {
+  display: flex;
+  align-items: baseline;
+  padding: 3px 14px;
+  gap: 8px;
+}
+.sv-label {
+  color: #6b7280;
+  flex-shrink: 0;
+  width: 62px;
+  font-size: 11px;
+}
+.sv-value {
+  color: #111827;
+  font-size: 11px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.sv-color-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sv-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+.sv-text-preview { align-items: flex-start; }
+.sv-text-content {
+  font-family: inherit;
+  white-space: normal;
+  word-break: break-word;
+  color: #6b7280;
+}

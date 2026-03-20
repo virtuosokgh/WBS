@@ -1,0 +1,353 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 24px;
+  backdrop-filter: blur(4px);
+}
+
+.modal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 540px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 0;
+  flex-shrink: 0;
+}
+
+.modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-header h2 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.modal-close-btn:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+/* 탭 */
+.modal-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 16px 24px 0;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px 8px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  margin-bottom: -1px;
+}
+.modal-tab:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+.modal-tab.active {
+  color: var(--accent);
+  background: var(--surface);
+  border-color: var(--border);
+  border-bottom-color: var(--surface);
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 20px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* URL 모드 - 기존 스타일 */
+.field-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  display: block;
+}
+
+.frame-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.frame-list-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.frame-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+.frame-item:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgba(124, 110, 247, 0.08);
+}
+
+.frame-name {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.frame-size {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* 인라인 불러오기 버튼 */
+.field-row {
+  display: flex;
+  gap: 8px;
+}
+
+.field-row input {
+  flex: 1;
+}
+
+.btn-fetch-inline {
+  padding: 0 16px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius);
+  white-space: nowrap;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.btn-fetch-inline:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.btn-fetch-inline:disabled {
+  opacity: 0.5;
+}
+
+/* 프로젝트 모드 - 로딩 */
+.project-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+  justify-content: center;
+}
+
+.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 프레임 목록 헤더 */
+.project-frame-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.project-frame-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.already-count {
+  color: var(--accent);
+}
+
+.project-select-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-text-sm {
+  font-size: 12px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+.btn-text-sm:hover { opacity: 0.7; }
+
+.select-divider {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* 프레임 체크리스트 */
+.project-frame-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+}
+
+.project-frame-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+  user-select: none;
+}
+.project-frame-item:hover:not(.existing) {
+  background: rgba(124, 110, 247, 0.08);
+}
+.project-frame-item.existing {
+  opacity: 0.5;
+  cursor: default;
+}
+.project-frame-item.checked {
+  background: rgba(124, 110, 247, 0.06);
+}
+
+.pf-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.12s, background 0.12s;
+  background: var(--surface2);
+  color: #fff;
+}
+.pf-checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.pf-checkbox.disabled.checked {
+  background: var(--text-muted);
+  border-color: var(--text-muted);
+}
+
+.pf-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pf-size {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.pf-existing-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* 가져오기 진행 */
+.import-progress {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.import-progress-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: rgba(124, 110, 247, 0.15);
+  transition: width 0.3s ease;
+}

@@ -1,0 +1,698 @@
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { Search, X, ChevronDown, ExternalLink, Package, Monitor, Upload } from 'lucide-react'
+import { getTasks, getProjectParticipants, updateTaskLinks } from '../lib/db'
+import { getStatusInfo, ROLE_COLORS, formatDate, STATUS_OPTIONS } from '../utils/helpers'
+import Modal from './Modal'
+
+const DAY_WIDTH = 28
+const ROW_HEIGHT = 44
+
+export default function GanttView({ projectId, onGoToScreen }) {
+  const [tasks, setTasks] = useState([])
+  const [members, setMembers] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  // ── 필터 상태 ──
+  const [searchText, setSearchText] = useState('')
+  const [filterAssignee, setFilterAssignee] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+
+  // ── 링크 모달 ──
+  const [activeModal, setActiveModal] = useState(null) // { type, task }
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    const [{ data: t }, { data: m }] = await Promise.all([
+      getTasks(projectId),
+      getProjectParticipants(projectId),
+    ])
+    setTasks(t || [])
+    setMembers(m || [])
+    setLoading(false)
+  }, [projectId])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  async function handleSaveLinks(taskId, updates) {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t))
+    await updateTaskLinks(taskId, updates)
+    setActiveModal(null)
+  }
+
+  function openModal(type, task) {
+    if (type === 'screen' && task.screen_ref) {
+      // 연결된 화면으로 바로 이동
+      onGoToScreen && onGoToScreen(task.screen_ref)
+    } else {
+      setActiveModal({ type, task })
+    }
+  }
+
+  // ── 날짜 있는 작업 + 필터 적용 ──
+  const filteredTasks = useMemo(() => {
+    return tasks
+      .filter(t => t.start_date && t.end_date)
+      .filter(t => !searchText || t.name.toLowerCase().includes(searchText.toLowerCase()))
+      .filter(t => {
+        if (!filterAssignee) return true
+        if (filterAssignee === '__unassigned__') return !t.assignee_id
+        return t.assignee_id === filterAssignee
+      })
+      .filter(t => !filterStatus || t.status === filterStatus)
+  }, [tasks, searchText, filterAssignee, filterStatus])
+
+  const activeFilterCount = [searchText, filterAssignee, filterStatus].filter(Boolean).length
+
+  const { minDate, days } = useMemo(() => {
+    if (filteredTasks.length === 0) return { minDate: null, days: [] }
+    const dates = filteredTasks.flatMap(t => [new Date(t.start_date), new Date(t.end_date)])
+    const min = new Date(Math.min(...dates))
+    const max = new Date(Math.max(...dates))
+    min.setDate(min.getDate() - 3)
+    max.setDate(max.getDate() + 3)
+    const dayList = []
+    const cursor = new Date(min)
+    while (cursor <= max) {
+      dayList.push(new Date(cursor))
+      cursor.setDate(cursor.getDate() + 1)
+    }
+    return { minDate: min, days: dayList }
+  }, [filteredTasks])
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  const tasksWithDates = tasks.filter(t => t.start_date && t.end_date)
+  if (tasksWithDates.length === 0) {
+    return (
+      <div className="text-center py-20 text-gray-400">
+        <p className="text-sm">시작일과 종료일이 설정된 작업이 없습니다</p>
+        <p className="text-xs mt-1">WBS 탭에서 작업에 날짜를 설정해주세요</p>
+      </div>
+    )
+  }
+
+  function getBarStyle(task) {
+    const start = new Date(task.start_date)
+    const end = new Date(task.end_date)
+    const left = Math.round((start - minDate) / (1000 * 60 * 60 * 24)) * DAY_WIDTH
+    const width = Math.max((Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1) * DAY_WIDTH, DAY_WIDTH)
+    return { left, width }
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayLeft = minDate
+    ? Math.round((today - minDate) / (1000 * 60 * 60 * 24)) * DAY_WIDTH
+    : null
+
+  // 월 그룹
+  const months = []
+  let curMonth = null
+  let curCount = 0
+  days.forEach(d => {
+    const key = `${d.getFullYear()}-${d.getMonth()}`
+    if (key !== curMonth) {
+      if (curMonth !== null) months.push({ key: curMonth, count: curCount })
+      curMonth = key
+      curCount = 1
+    } else { curCount++ }
+  })
+  if (curMonth) months.push({ key: curMonth, count: curCount })
+
+  const STATUS_BAR_COLORS = {
+    todo: 'bg-gray-300',
+    in_progress: 'bg-blue-400',
+    review: 'bg-yellow-400',
+    done: 'bg-green-400',
+    blocked: 'bg-red-400',
+  }
+
+  function clearFilters() {
+    setSearchText('')
+    setFilterAssignee('')
+    setFilterStatus('')
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* ── 필터 바 ── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[160px] max-w-xs">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            placeholder="작업명 검색..."
+            className="w-full pl-7 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+          />
+          {searchText && (
+            <button onClick={() => setSearchText('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        <div className="relative">
+          <select
+            value={filterAssignee}
+            onChange={e => setFilterAssignee(e.target.value)}
+            className={`pl-3 pr-7 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 appearance-none cursor-pointer bg-white ${
+              filterAssignee ? 'border-indigo-400 text-indigo-700 bg-indigo-50' : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            <option value="">담당자 전체</option>
+            <option value="__unassigned__">미배정</option>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{m.name}{m.role ? ` (${m.role})` : ''}</option>
+            ))}
+          </select>
+          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+
+        <div className="relative">
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className={`pl-3 pr-7 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 appearance-none cursor-pointer bg-white ${
+              filterStatus ? 'border-indigo-400 text-indigo-700 bg-indigo-50' : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            <option value="">상태 전체</option>
+            {STATUS_OPTIONS.map(s => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+
+        {activeFilterCount > 0 && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 border border-gray-200"
+          >
+            <X size={11} />
+            초기화
+            <span className="bg-indigo-100 text-indigo-700 font-semibold rounded-full px-1.5 py-0.5 text-xs leading-none">
+              {activeFilterCount}
+            </span>
+          </button>
+        )}
+
+        <span className="text-xs text-gray-400 ml-auto">
+          {filteredTasks.length}/{tasksWithDates.length}개 표시
+        </span>
+      </div>
+
+      {filteredTasks.length === 0 ? (
+        <div className="text-center py-16 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+          <p className="text-sm">조건에 맞는 작업이 없습니다</p>
+          <button onClick={clearFilters} className="mt-2 text-xs text-indigo-600 hover:text-indigo-800">
+            필터 초기화
+          </button>
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-gray-200 rounded-xl">
+          <div className="flex" style={{ minWidth: `${320 + days.length * DAY_WIDTH}px` }}>
+            {/* Left: 작업명 + 액션 버튼 */}
+            <div className="flex-shrink-0 w-80 border-r border-gray-200">
+              {/* 헤더 */}
+              <div className="h-12 border-b border-gray-200 flex items-end px-3 pb-1 bg-gray-50">
+                <span className="text-xs font-semibold text-gray-500 flex-1">작업명</span>
+                <span className="text-xs font-semibold text-gray-500 w-14 text-right">상태</span>
+              </div>
+
+              {filteredTasks.map(task => {
+                const assignee = members.find(m => m.id === task.assignee_id)
+                const status = getStatusInfo(task.status)
+                const hasDeliverable = !!(task.deliverable_url || task.deliverable_image)
+
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-1.5 px-3 border-b border-gray-100"
+                    style={{ height: ROW_HEIGHT }}
+                  >
+                    {/* 작업명 + 담당자 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-gray-800 truncate">{task.name}</div>
+                      {assignee ? (
+                        <div className="text-xs text-gray-400 flex items-center gap-1">
+                          <span>{assignee.name}</span>
+                          {assignee.role && (
+                            <span className={`px-1 rounded text-xs font-medium ${ROLE_COLORS[assignee.role] || 'bg-gray-100 text-gray-600'}`}>
+                              {assignee.role}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-300">미배정</div>
+                      )}
+                    </div>
+
+                    {/* 액션 버튼 3개 */}
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      {/* Jira */}
+                      <button
+                        onClick={() => openModal('jira', task)}
+                        title={task.jira_url ? 'Jira 티켓' : 'Jira 티켓 링크 추가'}
+                        className={`p-1.5 rounded transition-colors ${
+                          task.jira_url
+                            ? 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
+                            : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'
+                        }`}
+                      >
+                        <ExternalLink size={11} />
+                      </button>
+
+                      {/* 산출물 */}
+                      <button
+                        onClick={() => openModal('deliverable', task)}
+                        title={hasDeliverable ? '산출물 보기/수정' : '산출물 추가'}
+                        className={`p-1.5 rounded transition-colors ${
+                          hasDeliverable
+                            ? 'text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50'
+                            : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Package size={11} />
+                      </button>
+
+                      {/* 화면 */}
+                      <button
+                        onClick={() => openModal('screen', task)}
+                        title={task.screen_ref ? `화면: ${task.screen_name || task.screen_ref} (클릭 시 이동)` : '스토리보드 화면 연결'}
+                        className={`p-1.5 rounded transition-colors ${
+                          task.screen_ref
+                            ? 'text-violet-500 hover:text-violet-700 hover:bg-violet-50'
+                            : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Monitor size={11} />
+                      </button>
+                    </div>
+
+                    {/* 상태 배지 */}
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${status.color}`}>
+                      {status.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Right: 바 영역 */}
+            <div className="flex-1 overflow-x-auto">
+              {/* 월 헤더 */}
+              <div className="flex border-b border-gray-200 bg-gray-50" style={{ height: 24 }}>
+                {months.map(m => {
+                  const [year, month] = m.key.split('-')
+                  return (
+                    <div
+                      key={m.key}
+                      className="flex-shrink-0 border-r border-gray-200 flex items-center px-2"
+                      style={{ width: m.count * DAY_WIDTH }}
+                    >
+                      <span className="text-xs font-semibold text-gray-600">
+                        {year}년 {parseInt(month) + 1}월
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* 일 헤더 */}
+              <div className="flex border-b border-gray-200 bg-gray-50" style={{ height: 24 }}>
+                {days.map(d => {
+                  const isToday = d.toDateString() === today.toDateString()
+                  const isWeekend = d.getDay() === 0 || d.getDay() === 6
+                  return (
+                    <div
+                      key={d.toISOString()}
+                      className={`flex-shrink-0 flex items-center justify-center border-r border-gray-100 text-xs ${
+                        isToday ? 'bg-indigo-100 text-indigo-700 font-bold' :
+                        isWeekend ? 'text-red-400 bg-red-50/50' :
+                        'text-gray-400'
+                      }`}
+                      style={{ width: DAY_WIDTH }}
+                    >
+                      {d.getDate()}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* 행 */}
+              <div className="relative">
+                {todayLeft !== null && todayLeft >= 0 && todayLeft <= days.length * DAY_WIDTH && (
+                  <div
+                    className="absolute top-0 bottom-0 w-px bg-indigo-500 z-10 opacity-50"
+                    style={{ left: todayLeft + DAY_WIDTH / 2 }}
+                  />
+                )}
+                {days.map((d, i) => {
+                  const isWeekend = d.getDay() === 0 || d.getDay() === 6
+                  return isWeekend ? (
+                    <div
+                      key={d.toISOString()}
+                      className="absolute top-0 bottom-0 bg-gray-50/70"
+                      style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }}
+                    />
+                  ) : null
+                })}
+
+                {filteredTasks.map(task => {
+                  const { left, width } = getBarStyle(task)
+                  const barColor = STATUS_BAR_COLORS[task.status] || 'bg-gray-300'
+                  const hasDeliverable = !!(task.deliverable_url || task.deliverable_image)
+                  return (
+                    <div
+                      key={task.id}
+                      className="relative border-b border-gray-100 flex items-center"
+                      style={{ height: ROW_HEIGHT }}
+                    >
+                      <div
+                        className={`absolute rounded-md ${barColor} flex items-center px-2 overflow-hidden group`}
+                        style={{ left, width, height: 26 }}
+                        title={`${task.name}: ${formatDate(task.start_date)} ~ ${formatDate(task.end_date)}`}
+                      >
+                        <span className="text-xs text-white font-medium truncate flex-1">{task.name}</span>
+                        {/* 바 위 아이콘 */}
+                        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {task.jira_url && <ExternalLink size={9} className="text-white" />}
+                          {hasDeliverable && <Package size={9} className="text-white" />}
+                          {task.screen_ref && <Monitor size={9} className="text-white" />}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 모달 ── */}
+      {activeModal?.type === 'jira' && (
+        <JiraModal
+          task={activeModal.task}
+          onClose={() => setActiveModal(null)}
+          onSave={updates => handleSaveLinks(activeModal.task.id, updates)}
+        />
+      )}
+      {activeModal?.type === 'deliverable' && (
+        <DeliverableModal
+          task={activeModal.task}
+          onClose={() => setActiveModal(null)}
+          onSave={updates => handleSaveLinks(activeModal.task.id, updates)}
+        />
+      )}
+      {activeModal?.type === 'screen' && (
+        <ScreenPickerModal
+          task={activeModal.task}
+          onClose={() => setActiveModal(null)}
+          onSave={updates => handleSaveLinks(activeModal.task.id, updates)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────
+// Jira 링크 모달
+// ──────────────────────────────────────────
+function JiraModal({ task, onClose, onSave }) {
+  const [url, setUrl] = useState(task.jira_url || '')
+  const [err, setErr] = useState('')
+
+  function handleSave() {
+    const trimmed = url.trim()
+    if (!trimmed) { setErr('URL을 입력해주세요.'); return }
+    try { new URL(trimmed) } catch { setErr('올바른 URL 형식이 아닙니다.'); return }
+    onSave({ jira_url: trimmed })
+  }
+
+  return (
+    <Modal title="Jira 티켓 링크" onClose={onClose} onConfirm={handleSave} confirmLabel="저장" size="sm">
+      <div className="space-y-3">
+        {task.jira_url && (
+          <div className="flex items-center gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg">
+            <ExternalLink size={13} className="text-blue-400 flex-shrink-0" />
+            <span className="text-xs text-blue-700 truncate flex-1">{task.jira_url}</span>
+            <a
+              href={task.jira_url} target="_blank" rel="noopener noreferrer"
+              className="text-xs text-blue-500 hover:text-blue-700 font-medium flex-shrink-0"
+            >
+              열기
+            </a>
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            티켓 URL <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="url"
+            value={url}
+            onChange={e => { setUrl(e.target.value); setErr('') }}
+            placeholder="https://your-company.atlassian.net/browse/PROJ-123"
+            className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+              err ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-500'
+            }`}
+            autoFocus
+            onKeyDown={e => e.key === 'Enter' && handleSave()}
+          />
+          {err && <p className="mt-1 text-xs text-red-500">⚠ {err}</p>}
+        </div>
+        {task.jira_url && (
+          <button
+            onClick={() => onSave({ jira_url: '' })}
+            className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+          >
+            링크 제거
+          </button>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+// ──────────────────────────────────────────
+// 산출물 모달
+// ──────────────────────────────────────────
+function DeliverableModal({ task, onClose, onSave }) {
+  const hasImage = !!task.deliverable_image
+  const [tab, setTab] = useState(hasImage ? 'image' : 'url')
+  const [url, setUrl] = useState(task.deliverable_url || '')
+  const [image, setImage] = useState(task.deliverable_image || '')
+  const [err, setErr] = useState('')
+  const fileRef = useRef(null)
+
+  function handleFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { setErr('5MB 이하 이미지만 업로드 가능합니다.'); return }
+    const reader = new FileReader()
+    reader.onload = ev => { setImage(ev.target.result || ''); setErr('') }
+    reader.readAsDataURL(file)
+  }
+
+  function handleSave() {
+    if (tab === 'url') {
+      const trimmed = url.trim()
+      if (!trimmed) { setErr('URL을 입력해주세요.'); return }
+      try { new URL(trimmed) } catch { setErr('올바른 URL 형식이 아닙니다.'); return }
+      onSave({ deliverable_url: trimmed, deliverable_image: '' })
+    } else {
+      if (!image) { setErr('이미지를 선택해주세요.'); return }
+      onSave({ deliverable_url: '', deliverable_image: image })
+    }
+  }
+
+  return (
+    <Modal title="산출물" onClose={onClose} onConfirm={handleSave} confirmLabel="저장" size="md">
+      <div className="space-y-4">
+        {/* 탭 */}
+        <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+          <button
+            onClick={() => { setTab('url'); setErr('') }}
+            className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === 'url' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            URL 링크
+          </button>
+          <button
+            onClick={() => { setTab('image'); setErr('') }}
+            className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === 'image' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            이미지
+          </button>
+        </div>
+
+        {tab === 'url' ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              산출물 URL <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="url"
+              value={url}
+              onChange={e => { setUrl(e.target.value); setErr('') }}
+              placeholder="https://..."
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                err ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-500'
+              }`}
+              autoFocus
+            />
+            {url && (
+              <a
+                href={url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-2 text-xs text-indigo-600 hover:text-indigo-800"
+              >
+                <ExternalLink size={11} /> 링크 열기
+              </a>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              이미지 <span className="text-red-500">*</span>
+            </label>
+            {image ? (
+              <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                <img src={image} alt="산출물" className="w-full max-h-52 object-contain" />
+                <button
+                  onClick={() => setImage('')}
+                  className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md text-red-400 hover:text-red-600 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="w-full border-2 border-dashed border-gray-200 rounded-lg py-10 text-gray-400 hover:border-indigo-300 hover:text-indigo-500 transition-colors flex flex-col items-center gap-2"
+              >
+                <Upload size={24} />
+                <span className="text-sm">클릭하여 이미지 선택</span>
+                <span className="text-xs">최대 5MB · PNG, JPG, GIF</span>
+              </button>
+            )}
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+          </div>
+        )}
+
+        {err && <p className="text-xs text-red-500">⚠ {err}</p>}
+
+        {(task.deliverable_url || task.deliverable_image) && (
+          <button
+            onClick={() => onSave({ deliverable_url: '', deliverable_image: '' })}
+            className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+          >
+            산출물 제거
+          </button>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+// ──────────────────────────────────────────
+// 스토리보드 화면 연결 모달
+// ──────────────────────────────────────────
+function ScreenPickerModal({ task, onClose, onSave }) {
+  const [screens, setScreens] = useState([])
+  const [selected, setSelected] = useState(task.screen_ref || '')
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('sb_current')
+      if (raw) setScreens(JSON.parse(raw))
+    } catch {}
+  }, [])
+
+  function handleSave() {
+    if (!selected) return
+    const screen = screens.find(s => s.id === selected)
+    onSave({ screen_ref: selected, screen_name: screen?.frame?.name || '' })
+  }
+
+  return (
+    <Modal
+      title="스토리보드 화면 연결"
+      onClose={onClose}
+      onConfirm={handleSave}
+      confirmLabel="연결"
+      confirmDisabled={!selected}
+      size="sm"
+    >
+      {screens.length === 0 ? (
+        <div className="text-center py-10 text-gray-400">
+          <Monitor size={36} className="mx-auto mb-3 opacity-25" />
+          <p className="text-sm">스토리보드에 화면이 없습니다</p>
+          <p className="text-xs mt-1">스토리보드 탭에서 먼저 화면을 추가해주세요.</p>
+        </div>
+      ) : (
+        <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+          {screens.map((screen, idx) => (
+            <button
+              key={screen.id}
+              onClick={() => setSelected(screen.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors border ${
+                selected === screen.id
+                  ? 'bg-violet-50 border-violet-300 shadow-sm'
+                  : 'border-gray-100 hover:bg-gray-50 hover:border-gray-200'
+              }`}
+            >
+              {screen.frame?.imageUrl ? (
+                <img
+                  src={screen.frame.imageUrl} alt=""
+                  className="w-12 h-8 object-cover rounded flex-shrink-0 bg-gray-100 border border-gray-100"
+                />
+              ) : (
+                <div className="w-12 h-8 bg-gray-100 rounded flex-shrink-0 flex items-center justify-center">
+                  <Monitor size={14} className="text-gray-400" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-gray-800 truncate">
+                  {screen.frame?.name || `화면 ${idx + 1}`}
+                </div>
+                {screen.badges?.length > 0 && (
+                  <div className="text-xs text-gray-400">{screen.badges.length}개 배지</div>
+                )}
+              </div>
+              {selected === screen.id && (
+                <div className="w-4 h-4 rounded-full bg-violet-500 flex-shrink-0 flex items-center justify-center">
+                  <div className="w-2 h-2 rounded-full bg-white" />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {task.screen_ref && (
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+          <span className="text-xs text-gray-500">
+            현재 연결: <span className="font-medium text-violet-600">{task.screen_name || task.screen_ref}</span>
+          </span>
+          <button
+            onClick={() => onSave({ screen_ref: '', screen_name: '' })}
+            className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+          >
+            연결 해제
+          </button>
+        </div>
+      )}
+    </Modal>
+  )
+}

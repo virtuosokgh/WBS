@@ -1,0 +1,240 @@
+.spec-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  background: #1e1e2e;
+  color: #cdd6f4;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.spec-panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #6c7086;
+  flex: 1;
+  overflow: hidden;
+  background: #1e1e2e;
+  padding: 24px;
+  text-align: center;
+}
+
+/* ── Header ─────────────────────────────────── */
+.spec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #313244;
+  flex-shrink: 0;
+  background: #181825;
+}
+
+.spec-header-title {
+  font-weight: 600;
+  font-size: 12px;
+  color: #cdd6f4;
+}
+
+.spec-open-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #89b4fa;
+  text-decoration: none;
+}
+.spec-open-btn:hover { text-decoration: underline; }
+
+/* ── Body ────────────────────────────────────── */
+.spec-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Node Tree ───────────────────────────────── */
+.spec-tree {
+  width: 48%;
+  min-width: 120px;
+  border-right: 1px solid #313244;
+  overflow-y: auto;
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+
+.spec-tree-node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  user-select: none;
+  color: #a6adc8;
+  font-size: 11px;
+  min-height: 24px;
+}
+.spec-tree-node:hover { background: #24243c; }
+.spec-tree-node.selected { background: #313244; color: #cdd6f4; }
+
+.spec-chevron {
+  flex-shrink: 0;
+  transition: transform 0.12s;
+  opacity: 0.5;
+}
+.spec-chevron.open { transform: rotate(90deg); }
+
+.spec-leaf-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #45475a;
+  flex-shrink: 0;
+  margin: 0 2.5px;
+}
+
+.spec-node-type {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.spec-node-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  color: #a6adc8;
+}
+
+/* ── Props Panel ─────────────────────────────── */
+.spec-props-panel {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.spec-node-header {
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid #313244;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #181825;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.spec-node-type-badge {
+  font-size: 9px;
+  color: #cba6f7;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.spec-node-name-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cdd6f4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spec-props { padding: 6px 0; }
+
+.spec-section { margin-bottom: 6px; }
+
+.spec-section-title {
+  padding: 4px 12px 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #585b70;
+  letter-spacing: 0.06em;
+  background: #181825;
+  position: sticky;
+  top: 0;
+}
+
+.spec-row {
+  display: flex;
+  align-items: baseline;
+  padding: 2.5px 12px;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.spec-label {
+  color: #6c7086;
+  flex-shrink: 0;
+  width: 66px;
+  font-size: 11px;
+}
+
+.spec-value {
+  color: #cdd6f4;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.spec-value.mono {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 10.5px;
+}
+
+.spec-color-value {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.spec-color-swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.spec-text-preview .spec-value {
+  font-size: 11px;
+  color: #a6adc8;
+  white-space: normal;
+  word-break: break-word;
+  font-family: inherit;
+}
+
+/* ── Loading / Error ────────────────────────── */
+.spec-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #313244;
+  border-top-color: #cba6f7;
+  border-radius: 50%;
+  animation: spec-spin 0.8s linear infinite;
+}
+@keyframes spec-spin { to { transform: rotate(360deg); } }
+
+.spec-reload-btn {
+  padding: 5px 14px;
+  background: #313244;
+  color: #cdd6f4;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.spec-reload-btn:hover { background: #45475a; }

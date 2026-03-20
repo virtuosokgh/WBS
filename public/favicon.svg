@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Background with gradient -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#4338CA"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="white" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square base -->
+  <rect width="32" height="32" rx="8" fill="url(#bg)"/>
+  <!-- Subtle inner glow -->
+  <rect width="32" height="32" rx="8" fill="url(#glow)"/>
+
+  <!-- Bold P — stem -->
+  <rect x="7.5" y="6.5" width="4.5" height="19" rx="2.25" fill="white"/>
+
+  <!-- Bold P — bowl (rounded arc) -->
+  <path d="M12 6.5 C20.5 6.5 21.5 9.5 21.5 13.5 C21.5 17.5 20.5 20.5 12 20.5"
+        stroke="white" stroke-width="4.5" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Accent dot — the "i" of PlanIt -->
+  <circle cx="25" cy="8" r="2.5" fill="white" opacity="0.85"/>
+</svg>

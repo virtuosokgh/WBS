@@ -1,0 +1,231 @@
+/* backdrop은 LibraryModal.css에 정의된 .modal-backdrop 공유 */
+
+.np-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: 500px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  animation: modalIn 0.18s ease;
+  overflow: hidden;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── 헤더 ── */
+.np-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.np-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.np-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.np-close-btn:hover:not(:disabled) {
+  background: var(--surface2);
+  color: var(--text);
+}
+.np-close-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── 본문 ── */
+.np-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.np-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.np-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.np-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.np-help-link {
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: auto;
+}
+.np-help-link:hover { text-decoration: underline; }
+
+.np-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.np-input:focus { border-color: var(--accent); }
+.np-input::placeholder { color: var(--text-muted); }
+.np-input:disabled { opacity: 0.5; }
+
+.np-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* 토큰 저장됨 */
+.np-token-saved {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.np-token-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4ade80;
+}
+
+.np-token-change {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.np-token-change:hover {
+  color: var(--text);
+  border-color: rgba(255,255,255,0.2);
+}
+
+/* 에러 */
+.np-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(240, 112, 112, 0.1);
+  border: 1px solid rgba(240, 112, 112, 0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--danger);
+  line-height: 1.5;
+}
+
+/* 로딩 */
+.np-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+.np-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── 푸터 ── */
+.np-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.np-btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.np-btn-cancel:hover:not(:disabled) {
+  background: var(--surface2);
+  color: var(--text);
+}
+.np-btn-cancel:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.np-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+.np-btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.np-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }

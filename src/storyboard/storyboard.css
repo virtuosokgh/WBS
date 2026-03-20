@@ -1,0 +1,350 @@
+/* ──────────────────────────────────────────────────────
+   스토리보드 루트: WBS / TDS 라이트 테마
+   모든 변수를 .sb-root 스코프로 격리
+────────────────────────────────────────────────────── */
+.sb-root {
+  /* ── 컬러 토큰 (WBS/TDS 기준 라이트) ── */
+  --bg:           #F9FAFB;
+  --surface:      #FFFFFF;
+  --surface2:     #F3F4F6;
+  --border:       #E5E7EB;
+  --accent:       #4F46E5;
+  --accent-hover: #4338CA;
+  --text:         #111827;
+  --text-muted:   #6B7280;
+  --badge-bg:     #4F46E5;
+  --badge-text:   #fff;
+  --danger:       #EF4444;
+  --success:      #10B981;
+  --radius:       8px;
+  --shadow:       0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+
+  /* ── 레이아웃 ── */
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 130px);
+  min-height: 520px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Inter', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+/* 스크롤바 */
+.sb-root ::-webkit-scrollbar { width: 6px; height: 6px; }
+.sb-root ::-webkit-scrollbar-track { background: transparent; }
+.sb-root ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.sb-root ::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
+
+/* 버튼 리셋 */
+.sb-root button { cursor: pointer; border: none; background: none; font: inherit; color: inherit; }
+
+/* ── 앱 내부 레이아웃 ── */
+.sb-root .app        { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.sb-root .app-body   { display: flex; flex: 1; overflow: hidden; }
+
+/* ════════════════════════════════════════════════════
+   툴바 오버라이드 (hardcoded dark → light)
+════════════════════════════════════════════════════ */
+
+/* deselect 버튼 – 라이트 배경에 맞게 */
+.sb-root .deselect-btn {
+  background: rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.1);
+  color: var(--text-muted);
+}
+.sb-root .deselect-btn:hover {
+  background: rgba(0,0,0,0.1);
+  color: var(--text);
+}
+
+/* selected badge preview – 라이트 배경 */
+.sb-root .selected-badge-preview {
+  background: var(--surface2);
+  color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* accent 관련 hover rgba (기존 보라 → 인디고) */
+.sb-root .size-option:hover {
+  background: rgba(79, 70, 229, 0.08);
+}
+.sb-root .size-option.active {
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.25);
+}
+.sb-root .selected-badge-group {
+  background: rgba(79, 70, 229, 0.06);
+  border-color: rgba(79, 70, 229, 0.25);
+}
+.sb-root .pending-notice {
+  background: rgba(79, 70, 229, 0.06);
+  border-color: rgba(79, 70, 229, 0.3);
+}
+.sb-root .pending-badge-preview {
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+}
+@keyframes sbBadgePulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(79,70,229,0.3); }
+  50%       { box-shadow: 0 2px 16px rgba(79,70,229,0.6); }
+}
+.sb-root .pending-badge-preview { animation: sbBadgePulse 1.2s ease-in-out infinite; }
+
+/* btn-ghost – 라이트 테마 hover */
+.sb-root .btn-ghost {
+  color: #374151;
+  border: 1px solid transparent;
+}
+.sb-root .btn-ghost:hover {
+  color: var(--text);
+  background: var(--surface2);
+  border-color: var(--border);
+}
+.sb-root .btn-ghost.save:hover {
+  color: #059669;
+  background: rgba(16,185,129,0.08);
+  border-color: rgba(16,185,129,0.3);
+}
+.sb-root .btn-ghost.library:hover,
+.sb-root .btn-ghost.sync:hover {
+  color: var(--accent);
+  background: rgba(79,70,229,0.08);
+  border-color: rgba(79,70,229,0.25);
+}
+.sb-root .btn-ghost.spec-toggle:hover,
+.sb-root .btn-ghost.spec-toggle.active {
+  color: #0891B2;
+  background: rgba(8,145,178,0.08);
+  border-color: rgba(8,145,178,0.3);
+}
+
+/* ════════════════════════════════════════════════════
+   ImageCanvas 오버라이드
+════════════════════════════════════════════════════ */
+
+/* 캔버스 배경 – 라이트 격자 */
+.sb-root .canvas-image-wrap {
+  background:
+    radial-gradient(circle, rgba(79,70,229,0.03) 0%, transparent 60%),
+    repeating-conic-gradient(#F3F4F6 0% 25%, #FFFFFF 0% 50%) 0 0 / 24px 24px;
+}
+
+/* 이미지 그림자 – 라이트 */
+.sb-root .canvas-image {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
+}
+
+/* 배지 핀 hover glow */
+.sb-root .badge-pin:hover {
+  box-shadow: 0 4px 16px rgba(79,70,229,0.5), 0 0 0 2px rgba(255,255,255,0.8);
+}
+.sb-root .badge-pin.selected {
+  box-shadow: 0 0 0 3px var(--accent), 0 4px 16px rgba(79,70,229,0.4);
+}
+
+/* 배지 크기 팝업 – 라이트 */
+.sb-root .badge-size-popup {
+  background: #FFFFFF;
+  backdrop-filter: none;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06);
+}
+.sb-root .badge-size-popup::after {
+  border-top-color: #FFFFFF;
+}
+.sb-root .size-popup-btn {
+  border-color: var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+}
+.sb-root .size-popup-btn:hover {
+  border-color: var(--accent);
+  background: rgba(79,70,229,0.08);
+  color: var(--accent);
+}
+.sb-root .size-popup-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(79,70,229,0.2);
+}
+
+/* 배치 힌트 */
+.sb-root .placing-hint {
+  background: rgba(79,70,229,0.9);
+  box-shadow: 0 2px 12px rgba(79,70,229,0.35);
+}
+
+/* Figma 링크 플로팅 버튼 – 라이트 */
+.sb-root .figma-link-float {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.sb-root .figma-link-float:hover {
+  background: rgba(79,70,229,0.08);
+  border-color: rgba(79,70,229,0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* ════════════════════════════════════════════════════
+   DescriptionPanel 오버라이드
+════════════════════════════════════════════════════ */
+
+.sb-root .badge-entry:hover { border-color: rgba(79,70,229,0.35); }
+.sb-root .badge-entry.active {
+  border-color: var(--accent);
+  background: rgba(79,70,229,0.05);
+}
+.sb-root .badge-entry.hovered {
+  border-color: rgba(79,70,229,0.4);
+  background: rgba(79,70,229,0.04);
+  box-shadow: 0 0 0 2px rgba(79,70,229,0.1);
+}
+.sb-root .badge-entry.active .entry-pin {
+  box-shadow: 0 0 0 2px rgba(79,70,229,0.3);
+}
+.sb-root .screen-link-chip {
+  background: rgba(79,70,229,0.08);
+  border-color: rgba(79,70,229,0.2);
+}
+.sb-root .screen-link-chip:hover {
+  background: rgba(79,70,229,0.14);
+  border-color: var(--accent);
+}
+.sb-root .screen-picker-dropdown {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+}
+.sb-root .screen-picker-item:hover { background: rgba(79,70,229,0.07); }
+.sb-root .screen-tab.active { background: rgba(79,70,229,0.07); }
+.sb-root .copy-link-btn:hover {
+  background: rgba(79,70,229,0.1);
+  color: var(--accent);
+}
+.sb-root .entry-size-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.sb-root .add-screen-tab-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(79,70,229,0.04);
+}
+.sb-root .refresh-btn:hover {
+  color: var(--accent);
+  background: rgba(79,70,229,0.08);
+  border-color: rgba(79,70,229,0.2);
+}
+.sb-root .btn-link-screen:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(79,70,229,0.06);
+}
+.sb-root .save-btn { background: var(--accent); }
+.sb-root .save-btn:hover { background: var(--accent-hover); }
+
+/* ════════════════════════════════════════════════════
+   모달 공통 오버라이드
+════════════════════════════════════════════════════ */
+.sb-root .modal-backdrop,
+.sb-root .modal-overlay {
+  background: rgba(0,0,0,0.3);
+}
+
+/* ════════════════════════════════════════════════════
+   FigmaSetup – 탭 내 배치 (fixed → absolute 스코프)
+════════════════════════════════════════════════════ */
+.sb-root {
+  position: relative; /* setup-overlay 기준점 */
+}
+.sb-root .setup-overlay {
+  position: absolute;
+  background: var(--bg);
+  border-radius: 12px;
+}
+.sb-root .setup-loading {
+  background: rgba(79,70,229,0.06);
+  border-color: rgba(79,70,229,0.2);
+  color: var(--accent);
+}
+.sb-root .setup-spinner {
+  border-color: rgba(79,70,229,0.2);
+  border-top-color: var(--accent);
+}
+.sb-root .token-saved-badge {
+  background: rgba(16,185,129,0.1);
+  border-color: rgba(16,185,129,0.2);
+  color: #059669;
+}
+.sb-root .frame-check-item.selected { background: rgba(79,70,229,0.06); }
+.sb-root .frame-check-item:hover { background: var(--surface2); }
+.sb-root .frame-check-item.selected .frame-check-num {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ════════════════════════════════════════════════════
+   LibraryModal / AddScreenModal 라이트 오버라이드
+════════════════════════════════════════════════════ */
+.sb-root .library-modal,
+.sb-root .modal-card,
+.sb-root .np-modal {
+  box-shadow: 0 12px 40px rgba(0,0,0,0.14), 0 4px 12px rgba(0,0,0,0.08);
+}
+.sb-root .library-item:hover {
+  border-color: rgba(79,70,229,0.3);
+  background: rgba(79,70,229,0.04);
+}
+.sb-root .library-item-thumb {
+  background: rgba(79,70,229,0.08);
+  border-color: rgba(79,70,229,0.15);
+  color: var(--accent);
+}
+.sb-root .project-frame-item:hover:not(.existing) {
+  background: rgba(79,70,229,0.06);
+}
+.sb-root .project-frame-item.checked { background: rgba(79,70,229,0.04); }
+.sb-root .pf-checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.sb-root .frame-item:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgba(79,70,229,0.06);
+}
+.sb-root .modal-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--surface);
+}
+.sb-root .btn-load-project { background: var(--accent); }
+.sb-root .btn-load-project:hover { background: var(--accent-hover); }
+.sb-root .btn-primary { background: var(--accent); }
+.sb-root .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.sb-root .btn-fetch-inline { background: var(--accent); }
+.sb-root .btn-fetch-inline:hover:not(:disabled) { background: var(--accent-hover); }
+.sb-root .import-progress-bar { background: rgba(79,70,229,0.15); }
+
+/* ── NewProjectModal ── */
+.sb-root .np-modal {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.sb-root .np-input {
+  background: var(--surface2);
+  border-color: var(--border);
+  color: var(--text);
+  width: 100%;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.sb-root .np-input:focus { border-color: var(--accent); }

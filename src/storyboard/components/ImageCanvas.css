@@ -1,0 +1,238 @@
+.canvas-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.canvas-image-wrap {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle, rgba(124,110,247,0.04) 0%, transparent 70%),
+    repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 24px 24px;
+  padding: 24px;
+}
+
+.canvas-image-wrap.placing {
+  cursor: crosshair;
+}
+
+.canvas-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.canvas-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 32px;
+}
+.canvas-error p {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+.canvas-error-sub {
+  font-size: 12px;
+  font-weight: 400 !important;
+  color: var(--text-muted) !important;
+  line-height: 1.6;
+}
+.canvas-error-sub strong {
+  color: var(--accent);
+}
+
+.canvas-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  display: block;
+  border-radius: 6px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  background: #ffffff;          /* Figma 투명 배경 프레임 대응 */
+  opacity: 0;
+  transition: opacity 0.3s;
+  user-select: none;
+  pointer-events: none;
+}
+.canvas-image.visible { opacity: 1; }
+
+/* 배지 핀 */
+.badge-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 0 2px rgba(255,255,255,0.12);
+  transition: transform 0.1s, box-shadow 0.1s, width 0.12s, height 0.12s, font-size 0.12s;
+  z-index: 10;
+  pointer-events: all;
+}
+.badge-pin:hover {
+  transform: translate(-50%, -50%) scale(1.15);
+  box-shadow: 0 4px 16px rgba(124,110,247,0.6), 0 0 0 2px rgba(255,255,255,0.2);
+}
+.badge-pin.selected {
+  background: #fff;
+  color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent), 0 4px 16px rgba(124,110,247,0.5);
+  transform: translate(-50%, -50%) scale(1.15);
+  z-index: 20;
+}
+.badge-pin.dragging {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.2);
+  opacity: 0.85;
+  z-index: 30;
+}
+
+/* 배지 크기 팝업 */
+.badge-size-popup {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(18, 18, 22, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 5px 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  z-index: 40;
+  white-space: nowrap;
+  pointer-events: all;
+  animation: popupIn 0.12s ease;
+}
+@keyframes popupIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); scale: 0.95; }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); scale: 1; }
+}
+
+/* 팝업 말풍선 꼬리 */
+.badge-size-popup::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(18, 18, 22, 0.92);
+}
+
+.size-popup-btn {
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s, color 0.1s, transform 0.1s;
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+}
+.size-popup-btn:hover {
+  border-color: var(--accent);
+  background: rgba(124,110,247,0.3);
+  color: #fff;
+  transform: scale(1.12);
+}
+.size-popup-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(124,110,247,0.4);
+}
+
+/* 배치 힌트 */
+.placing-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(124,110,247,0.9);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(4px); } }
+
+/* 우측 상단 플로팅 Figma 링크 */
+.figma-link-float {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(15, 15, 17, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 15;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  pointer-events: all;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+.figma-link-float:hover {
+  background: rgba(124, 110, 247, 0.2);
+  border-color: rgba(124, 110, 247, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}

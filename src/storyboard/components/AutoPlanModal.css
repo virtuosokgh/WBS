@@ -1,0 +1,376 @@
+.ap-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ap-modal {
+  background: white;
+  border-radius: 16px;
+  width: 520px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.ap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.ap-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ap-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ap-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* API Key box */
+.ap-apikey-box {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+
+.ap-apikey-notice {
+  font-size: 12px;
+  color: #92400e;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.ap-apikey-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ap-apikey-input {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  font-size: 12px;
+  font-family: monospace;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.ap-apikey-input:focus {
+  border-color: #6366f1;
+}
+
+.ap-apikey-save {
+  padding: 7px 14px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.ap-apikey-save:hover {
+  background: #4338ca;
+}
+
+.ap-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 10px;
+}
+
+/* Mode grid */
+.ap-mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ap-mode-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: white;
+  text-align: left;
+}
+
+.ap-mode-card:hover {
+  border-color: #a5b4fc;
+  background: #f5f3ff;
+}
+
+.ap-mode-card.active {
+  border-color: #4f46e5;
+  background: #eef2ff;
+}
+
+.ap-mode-icon {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.ap-mode-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 3px;
+}
+
+.ap-mode-desc {
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+/* File drop zone */
+.ap-dropzone {
+  border: 2px dashed #d1d5db;
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  margin-bottom: 16px;
+}
+
+.ap-dropzone:hover,
+.ap-dropzone.dragover {
+  border-color: #6366f1;
+  background: #f5f3ff;
+}
+
+.ap-dropzone-icon {
+  font-size: 24px;
+  margin-bottom: 6px;
+}
+
+.ap-dropzone-text {
+  font-size: 12px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.ap-dropzone-sub {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 3px;
+}
+
+.ap-file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+}
+
+.ap-file-name {
+  font-size: 12px;
+  color: #15803d;
+  font-weight: 500;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ap-file-remove {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #9ca3af;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+
+.ap-file-remove:hover {
+  color: #ef4444;
+}
+
+/* Run button */
+.ap-run-btn {
+  width: 100%;
+  padding: 12px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ap-run-btn:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.ap-run-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Loading state */
+.ap-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px 0;
+}
+
+.ap-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: ap-spin 0.7s linear infinite;
+}
+
+@keyframes ap-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ap-loading-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.ap-progress-text {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Success state */
+.ap-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 0;
+}
+
+.ap-success-icon {
+  width: 48px;
+  height: 48px;
+  background: #dcfce7;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.ap-success-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.ap-success-desc {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.ap-success-apply {
+  padding: 10px 28px;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ap-success-apply:hover {
+  background: #15803d;
+}
+
+/* Error state */
+.ap-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.ap-error-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+  margin-bottom: 4px;
+}
+
+.ap-error-msg {
+  font-size: 11px;
+  color: #991b1b;
+  line-height: 1.5;
+}
+
+.ap-retry-btn {
+  margin-top: 10px;
+  padding: 6px 14px;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ap-retry-btn:hover {
+  background: #b91c1c;
+}

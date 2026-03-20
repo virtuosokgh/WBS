@@ -1,0 +1,287 @@
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { getTasks, createTask, updateTask, deleteTask, updateTaskStatus, getProjectParticipants } from '../lib/db'
+import { STATUS_OPTIONS, ROLE_COLORS, getStatusInfo, getPriorityInfo, formatDate, getDday } from '../utils/helpers'
+import TaskModal from './TaskModal'
+
+export default function WBSTable({ projectId }) {
+  const [tasks, setTasks] = useState([])
+  const [members, setMembers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [collapsed, setCollapsed] = useState({})
+  const [editTask, setEditTask] = useState(null)
+  const [showModal, setShowModal] = useState(false)
+  const [parentForNew, setParentForNew] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    const [{ data: t }, { data: m }] = await Promise.all([
+      getTasks(projectId),
+      getProjectParticipants(projectId),
+    ])
+    setTasks(t || [])
+    setMembers(m || [])
+    setLoading(false)
+  }, [projectId])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  function openCreate(parentId = null) {
+    setParentForNew(parentId)
+    setEditTask(null)
+    setShowModal(true)
+  }
+
+  function openEdit(task) {
+    // Normalize DB column names to component field names
+    setEditTask({
+      ...task,
+      parentId: task.parent_id,
+      assigneeId: task.assignee_id,
+      startDate: task.start_date,
+      endDate: task.end_date,
+    })
+    setShowModal(true)
+  }
+
+  async function handleSave(formData) {
+    if (saving) return
+    setSaving(true)
+    setSaveError('')
+    if (editTask) {
+      const { data, error } = await updateTask(editTask.id, formData)
+      if (error) { setSaveError('저장에 실패했습니다. 다시 시도해주세요.'); setSaving(false); return }
+      if (data) setTasks(t => t.map(x => x.id === editTask.id ? data : x))
+    } else {
+      const { data, error } = await createTask(projectId, { ...formData, parentId: parentForNew })
+      if (error) {
+        const msg = error.code === '23505' ? '같은 이름의 작업이 이미 있습니다.'
+          : error.code === '23503' ? '유효하지 않은 참조값이 있습니다.'
+          : '작업 생성에 실패했습니다. 다시 시도해주세요.'
+        setSaveError(msg); setSaving(false); return
+      }
+      if (data) setTasks(t => [...t, data])
+    }
+    setSaving(false)
+    setShowModal(false)
+  }
+
+  async function handleDelete(id) {
+    await deleteTask(id)
+    // Remove task and all descendants
+    const allIds = getAllDescendants(tasks, id)
+    allIds.add(id)
+    setTasks(t => t.filter(x => !allIds.has(x.id)))
+  }
+
+  async function handleStatusChange(id, status) {
+    await updateTaskStatus(id, status)
+    setTasks(t => t.map(x => x.id === id ? { ...x, status } : x))
+  }
+
+  const rootTasks = tasks.filter(t => !t.parent_id)
+  const childMap = {}
+  tasks.forEach(t => {
+    if (t.parent_id) {
+      if (!childMap[t.parent_id]) childMap[t.parent_id] = []
+      childMap[t.parent_id].push(t)
+    }
+  })
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold text-gray-900">작업 목록 ({tasks.length}개)</h3>
+        <button
+          onClick={() => openCreate(null)}
+          className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+        >
+          <Plus size={15} />
+          작업 추가
+        </button>
+      </div>
+
+      {tasks.length === 0 ? (
+        <div className="text-center py-16 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+          <Plus size={32} className="mx-auto mb-2 opacity-30" />
+          <p className="text-sm">작업이 없습니다</p>
+          <button onClick={() => openCreate(null)} className="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+            첫 번째 작업 추가하기
+          </button>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[900px]">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-8">#</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">작업명</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-28">담당자</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-24">상태</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-16">우선순위</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-24">시작일</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-24">종료일</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-16">D-Day</th>
+                <th className="py-2 px-3 w-20"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rootTasks.map((task, idx) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  index={idx + 1}
+                  depth={0}
+                  childMap={childMap}
+                  collapsed={collapsed}
+                  members={members}
+                  onToggle={id => setCollapsed(c => ({ ...c, [id]: !c[id] }))}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                  onStatusChange={handleStatusChange}
+                  onAddChild={openCreate}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showModal && (
+        <TaskModal
+          task={editTask}
+          members={members}
+          onClose={() => { setShowModal(false); setSaveError('') }}
+          onSave={handleSave}
+          saving={saving}
+          serverError={saveError}
+        />
+      )}
+    </div>
+  )
+}
+
+function getAllDescendants(tasks, id) {
+  const result = new Set()
+  const queue = [id]
+  while (queue.length > 0) {
+    const curr = queue.shift()
+    tasks.forEach(t => {
+      if (t.parent_id === curr) { result.add(t.id); queue.push(t.id) }
+    })
+  }
+  return result
+}
+
+function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, onEdit, onDelete, onStatusChange, onAddChild }) {
+  const children = childMap[task.id] || []
+  const hasChildren = children.length > 0
+  const isCollapsed = collapsed[task.id]
+  const status = getStatusInfo(task.status)
+  const priority = getPriorityInfo(task.priority)
+  const assignee = members.find(m => m.id === task.assignee_id)
+  const dday = getDday(task.end_date)
+  const isOverdue = task.end_date && new Date(task.end_date) < new Date() && task.status !== 'done'
+
+  return (
+    <>
+      <tr className="border-b border-gray-100 hover:bg-gray-50 group">
+        <td className="py-2 px-3 text-xs text-gray-400">{depth === 0 ? index : ''}</td>
+        <td className="py-2 px-3">
+          <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 20}px` }}>
+            {hasChildren ? (
+              <button onClick={() => onToggle(task.id)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+              </button>
+            ) : <span className="w-3.5 flex-shrink-0" />}
+            <button onClick={() => onEdit(task)} className="text-left text-gray-800 hover:text-indigo-600 font-medium truncate max-w-[300px]">
+              {task.name}
+            </button>
+            {task.description && (
+              <span className="text-gray-400 text-xs hidden group-hover:inline ml-1 truncate">— {task.description}</span>
+            )}
+          </div>
+        </td>
+        <td className="py-2 px-3">
+          {assignee ? (
+            <div className="flex items-center gap-1.5">
+              <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                {assignee.name[0]}
+              </div>
+              <div>
+                <div className="text-xs text-gray-700 leading-tight">{assignee.name}</div>
+                <div className={`text-xs px-1 rounded font-medium ${ROLE_COLORS[assignee.role] || 'bg-gray-100 text-gray-600'}`}>{assignee.role}</div>
+              </div>
+            </div>
+          ) : <span className="text-xs text-gray-300">-</span>}
+        </td>
+        <td className="py-2 px-3">
+          <select
+            value={task.status || 'todo'}
+            onChange={e => onStatusChange(task.id, e.target.value)}
+            className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400 ${status.color}`}
+          >
+            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </td>
+        <td className="py-2 px-3">
+          <span className={`text-xs font-medium ${priority.color}`}>{priority.label}</span>
+        </td>
+        <td className="py-2 px-3 text-xs text-gray-500">{formatDate(task.start_date)}</td>
+        <td className="py-2 px-3 text-xs">
+          <span className={isOverdue ? 'text-red-500 font-medium' : 'text-gray-500'}>{formatDate(task.end_date)}</span>
+        </td>
+        <td className="py-2 px-3">
+          {dday && task.status !== 'done' && (
+            <span className={`text-xs font-semibold ${
+              dday === 'D-Day' ? 'text-red-600' :
+              dday.startsWith('D+') ? 'text-red-400' :
+              parseInt(dday.replace('D-','')) <= 3 ? 'text-orange-500' : 'text-gray-500'
+            }`}>{dday}</span>
+          )}
+          {task.status === 'done' && <span className="text-xs text-green-500">✓</span>}
+        </td>
+        <td className="py-2 px-3">
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => onAddChild(task.id)} className="p-1 rounded hover:bg-indigo-50 text-gray-400 hover:text-indigo-600" title="하위 작업 추가">
+              <Plus size={13} />
+            </button>
+            <button onClick={() => onEdit(task)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+            <button onClick={() => onDelete(task.id)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
+              <Trash2 size={13} />
+            </button>
+          </div>
+        </td>
+      </tr>
+      {!isCollapsed && children.map((child, i) => (
+        <TaskRow
+          key={child.id}
+          task={child}
+          index={`${index}.${i + 1}`}
+          depth={depth + 1}
+          childMap={childMap}
+          collapsed={collapsed}
+          members={members}
+          onToggle={onToggle}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onStatusChange={onStatusChange}
+          onAddChild={onAddChild}
+        />
+      ))}
+    </>
+  )
+}

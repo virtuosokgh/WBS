@@ -1,0 +1,544 @@
+.desc-panel {
+  width: 300px;
+  min-width: 300px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-header h2 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* 주석 개수 — 뱃지와 구별되는 텍스트 스타일 */
+.annotation-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.panel-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty-icon {
+  opacity: 0.35;
+}
+
+.panel-empty p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.badge-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.badge-entry {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.badge-entry:hover {
+  border-color: rgba(124,110,247,0.4);
+}
+.badge-entry.active {
+  border-color: var(--accent);
+  background: rgba(124,110,247,0.08);
+}
+.badge-entry.hovered {
+  border-color: rgba(124,110,247,0.5);
+  background: rgba(124,110,247,0.05);
+  box-shadow: 0 0 0 2px rgba(124,110,247,0.15);
+  transform: translateX(2px);
+  transition: border-color 0.1s, background 0.1s, box-shadow 0.1s, transform 0.1s;
+}
+
+.entry-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.entry-pin {
+  border-radius: 50%;
+  background: var(--badge-bg);
+  color: #fff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: width 0.12s, height 0.12s, font-size 0.12s;
+}
+
+/* 패널 내 뱃지 크기 변경 버튼 그룹 */
+.entry-size-btns {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: auto;
+}
+
+.entry-size-btn {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 5px;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s, color 0.1s;
+  line-height: 1.4;
+}
+.entry-size-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(124,110,247,0.08);
+}
+.entry-size-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.badge-entry.active .entry-pin {
+  background: var(--accent-hover);
+  box-shadow: 0 0 0 2px rgba(124,110,247,0.4);
+}
+
+.entry-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.entry-index {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.delete-btn {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.delete-btn:hover {
+  color: var(--danger);
+  background: rgba(240,112,112,0.1);
+}
+
+.entry-desc {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.entry-desc.placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.entry-desc:hover {
+  text-decoration: underline dotted var(--text-muted);
+}
+
+.entry-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entry-edit textarea {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--text);
+  resize: vertical;
+  outline: none;
+  line-height: 1.5;
+}
+
+.edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.edit-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.save-btn {
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.save-btn:hover { background: var(--accent-hover); }
+
+.panel-selected-info {
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.panel-selected-info strong { color: var(--accent); }
+
+/* ── 화면 탭 섹션 ── */
+.screen-tabs-section {
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.screen-tabs-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px 8px;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.refresh-btn:hover {
+  color: var(--accent);
+  background: rgba(124, 110, 247, 0.1);
+  border-color: rgba(124, 110, 247, 0.25);
+}
+
+.screen-tabs-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.screen-count-badge {
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.screen-tabs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px 10px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.screen-tab {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  transition: background 0.12s;
+}
+.screen-tab:hover {
+  background: var(--surface2);
+}
+.screen-tab.active {
+  background: rgba(124, 110, 247, 0.1);
+}
+
+.screen-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  text-align: left;
+  min-width: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.screen-tab-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.screen-tab.active .screen-tab-num {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.screen-tab-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.screen-tab.active .screen-tab-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.screen-tab-badge-count {
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.screen-tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 6px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.screen-tab:hover .screen-tab-actions {
+  opacity: 1;
+}
+.screen-tab.active .screen-tab-actions {
+  opacity: 1;
+}
+
+.copy-link-btn,
+.remove-screen-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.copy-link-btn:hover {
+  background: rgba(124,110,247,0.15);
+  color: var(--accent);
+}
+.copy-link-btn.copied {
+  color: #4ade80;
+}
+.remove-screen-btn:hover {
+  background: rgba(240,112,112,0.12);
+  color: var(--danger);
+}
+
+.add-screen-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  width: 100%;
+  margin-top: 2px;
+}
+.add-screen-tab-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(124,110,247,0.06);
+}
+
+/* ── 화면 링크 ── */
+.screen-link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(124,110,247,0.12);
+  color: var(--accent);
+  border: 1px solid rgba(124,110,247,0.3);
+  border-radius: 5px;
+  padding: 1px 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  line-height: 1.6;
+  vertical-align: middle;
+}
+.screen-link-chip:hover {
+  background: rgba(124,110,247,0.22);
+  border-color: var(--accent);
+}
+
+.screen-link-missing {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* ── 화면 연결 버튼 & 드롭다운 ── */
+.edit-actions-left {
+  position: relative;
+}
+
+.edit-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-link-screen {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.btn-link-screen:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(124,110,247,0.08);
+}
+
+.screen-picker-dropdown {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  min-width: 180px;
+  max-width: 240px;
+  z-index: 100;
+  overflow: hidden;
+  padding: 4px;
+}
+
+.screen-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.screen-picker-item:hover {
+  background: rgba(124,110,247,0.1);
+}
+
+.picker-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.picker-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
