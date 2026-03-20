@@ -11,6 +11,7 @@ export default function AuthPage() {
   const [serverError, setServerError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const [done, setDone] = useState('')
+  const [rememberMe, setRememberMe] = useState(true)
 
   function update(field, value) {
     setForm(f => ({ ...f, [field]: value }))
@@ -36,6 +37,9 @@ export default function AuthPage() {
       if (error.message.includes('Invalid login credentials')) setServerError('이메일 또는 비밀번호가 올바르지 않습니다.')
       else if (error.message.includes('Email not confirmed')) setServerError('이메일 인증이 완료되지 않았습니다. 받은 편지함을 확인해주세요.')
       else setServerError(error.message)
+    } else {
+      sessionStorage.setItem('sb_session_active', '1')
+      localStorage.setItem('sb_remember_me', rememberMe ? 'true' : 'false')
     }
     setLoading(false)
   }
@@ -238,6 +242,25 @@ export default function AuthPage() {
               />
             </div>
           </Field>
+        )}
+
+        {/* 로그인 상태 유지 (로그인 모드만) */}
+        {mode === 'login' && (
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div
+              onClick={() => setRememberMe(v => !v)}
+              className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
+                rememberMe ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'
+              }`}
+            >
+              {rememberMe && (
+                <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                  <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
+            <span className="text-sm text-gray-600">로그인 상태 유지</span>
+          </label>
         )}
 
         {/* 서버 에러 */}

@@ -42,9 +42,16 @@ export default function App() {
   const [projectListKey, setProjectListKey] = useState(0)
 
   useEffect(() => {
-    // 세션 확인 후 세션 없으면 projects로 리셋
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
+    // 세션 확인 — 로그인 상태 유지 미설정 시 새 브라우저 세션에서 자동 로그아웃
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const sessionActive = sessionStorage.getItem('sb_session_active')
+      const rememberMe = localStorage.getItem('sb_remember_me')
+      if (session && !sessionActive && rememberMe === 'false') {
+        await supabase.auth.signOut()
+        setSession(null)
+      } else {
+        setSession(session)
+      }
       if (!session) {
         setView('projects')
         setCurrentProjectId(null)
