@@ -1,13 +1,10 @@
-import { useState } from 'react'
 import { Badge, BadgeSize, BADGE_SIZE_LABELS, BADGE_SIZE_PX } from '../types'
 import './Toolbar.css'
 
 interface Props {
   pendingLabel: string | null
   pendingSize?: BadgeSize
-  badgeCount: number
   selectedBadge?: Badge | null
-  onAddBadge?: (label: string, size: BadgeSize) => void
   onCancelPending: () => void
   onUpdateBadgeSize?: (id: string, size: BadgeSize) => void
   onDeselectBadge?: () => void
@@ -25,9 +22,7 @@ interface Props {
 export default function Toolbar({
   pendingLabel,
   pendingSize,
-  badgeCount,
   selectedBadge,
-  onAddBadge,
   onCancelPending,
   onUpdateBadgeSize,
   onDeselectBadge,
@@ -41,14 +36,6 @@ export default function Toolbar({
   onNewProject,
   canEdit = true,
 }: Props) {
-  const [input, setInput] = useState('')
-  const [selectedSize, setSelectedSize] = useState<BadgeSize>('M')
-
-  const handleAdd = () => {
-    const label = input.trim() || String(badgeCount + 1)
-    onAddBadge(label, selectedSize)
-    setInput('')
-  }
 
   return (
     <header className="toolbar">
@@ -83,7 +70,6 @@ export default function Toolbar({
         {!canEdit ? (
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>뷰 전용 모드</span>
         ) : pendingLabel ? (
-          /* State B: 뱃지 배치 대기 중 */
           <div className="pending-notice">
             <div
               className="pending-badge-preview"
@@ -101,7 +87,6 @@ export default function Toolbar({
             <button className="btn-cancel" onClick={onCancelPending}>취소</button>
           </div>
         ) : selectedBadge ? (
-          /* State C: 뱃지 선택됨 → 크기 조절 + 새 뱃지 추가 */
           <div className="selected-badge-group">
             <div
               className="selected-badge-preview"
@@ -134,54 +119,14 @@ export default function Toolbar({
             <button
               className="deselect-btn"
               onClick={onDeselectBadge}
-              title="선택 해제 후 새 뱃지 추가로 전환"
+              title="선택 해제"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                 <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
               </svg>
             </button>
           </div>
-        ) : (
-          /* State A: 기본 — 새 뱃지 추가 */
-          <div className="add-badge-group">
-            <input
-              type="text"
-              className="badge-input"
-              placeholder="뱃지 텍스트 (숫자 or 텍스트)..."
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAdd()}
-              maxLength={6}
-            />
-
-            {/* 새 뱃지 크기 선택 */}
-            <div className="size-selector" role="group" aria-label="새 뱃지 크기 선택">
-              <span className="size-label">크기</span>
-              {BADGE_SIZE_LABELS.map(size => (
-                <button
-                  key={size}
-                  className={`size-option ${selectedSize === size ? 'active' : ''}`}
-                  onClick={() => setSelectedSize(size)}
-                  title={`크기: ${size}`}
-                  style={{
-                    width:    BADGE_SIZE_PX[size].diameter * 0.72,
-                    height:   BADGE_SIZE_PX[size].diameter * 0.72,
-                    fontSize: BADGE_SIZE_PX[size].fontSize - 1,
-                  }}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-
-            <button className="btn-add" onClick={handleAdd}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-              뱃지 추가
-            </button>
-          </div>
-        )}
+        ) : null}
       </div>
 
       <div className="toolbar-actions">
