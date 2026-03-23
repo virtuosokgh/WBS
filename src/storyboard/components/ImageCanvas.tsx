@@ -32,6 +32,81 @@ export default function ImageCanvas({
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const dragOffset = useRef({ dx: 0, dy: 0 })
 
+  // ── Zoom state ──
+  const [zoom, setZoom] = useState(1)
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
+  const isPanning = useRef(false)
+  const panStart = useRef({ x: 0, y: 0, ox: 0, oy: 0 })
+  const ZOOM_MIN = 0.1
+  const ZOOM_MAX = 5
+  const ZOOM_STEP = 0.1
+
+  // Reset zoom when frame changes
+  useEffect(() => {
+    setZoom(1)
+    setPanOffset({ x: 0, y: 0 })
+  }, [frame.imageUrl])
+
+  // Mouse wheel zoom (Ctrl/Cmd + wheel)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP
+        setZoom(z => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + delta).toFixed(2))))
+      }
+    }
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [])
+
+  // Middle-mouse / Space+drag panning
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const onDown = (e: MouseEvent) => {
+      // middle click or space held
+      if (e.button === 1) {
+        e.preventDefault()
+        isPanning.current = true
+        panStart.current = { x: e.clientX, y: e.clientY, ox: panOffset.x, oy: panOffset.y }
+        el.style.cursor = 'grabbing'
+      }
+    }
+    const onMove = (e: MouseEvent) => {
+      if (!isPanning.current) return
+      setPanOffset({
+        x: panStart.current.ox + (e.clientX - panStart.current.x),
+        y: panStart.current.oy + (e.clientY - panStart.current.y),
+      })
+    }
+    const onUp = () => {
+      if (isPanning.current) {
+        isPanning.current = false
+        el.style.cursor = ''
+      }
+    }
+    el.addEventListener('mousedown', onDown)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      el.removeEventListener('mousedown', onDown)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [panOffset])
+
+  const handleZoomIn = () => setZoom(z => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)))
+  const handleZoomOut = () => setZoom(z => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)))
+  const handleZoomReset = () => { setZoom(1); setPanOffset({ x: 0, y: 0 }) }
+  const handleFitScreen = () => {
+    setZoom(1)
+    setPanOffset({ x: 0, y: 0 })
+  }
+
   // 화면(frame) 전환 시 로딩/에러 상태 초기화
   useEffect(() => {
     setImgLoaded(false)
@@ -124,28 +199,36 @@ export default function ImageCanvas({
           </div>
         )}
 
-        <img
-          ref={imgRef}
-          src={frame.imageUrl}
-          alt=""
-          className={`canvas-image ${imgLoaded ? 'visible' : ''}`}
-          onLoad={() => { setImgLoaded(true); setImgError(false) }}
-          onError={() => { setImgError(true); setImgLoaded(false) }}
-          draggable={false}
-        />
-
-        {imgLoaded && badges.map(badge => (
-          <BadgePin
-            key={badge.id}
-            badge={badge}
-            isSelected={badge.id === selectedBadgeId}
-            isDragging={badge.id === draggingId}
-            onMouseDown={(e) => handleBadgeMouseDown(e, badge.id)}
-            onClick={(e) => { e.stopPropagation(); onBadgeSelect(badge.id) }}
-            onSizeChange={(size) => onBadgeSizeChange(badge.id, size)}
-            onHover={(hovering) => onBadgeHover(hovering ? badge.id : null)}
+        <div
+          className="canvas-zoom-layer"
+          style={{
+            transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+            transformOrigin: 'center center',
+          }}
+        >
+          <img
+            ref={imgRef}
+            src={frame.imageUrl}
+            alt=""
+            className={`canvas-image ${imgLoaded ? 'visible' : ''}`}
+            onLoad={() => { setImgLoaded(true); setImgError(false) }}
+            onError={() => { setImgError(true); setImgLoaded(false) }}
+            draggable={false}
           />
-        ))}
+
+          {imgLoaded && badges.map(badge => (
+            <BadgePin
+              key={badge.id}
+              badge={badge}
+              isSelected={badge.id === selectedBadgeId}
+              isDragging={badge.id === draggingId}
+              onMouseDown={(e) => handleBadgeMouseDown(e, badge.id)}
+              onClick={(e) => { e.stopPropagation(); onBadgeSelect(badge.id) }}
+              onSizeChange={(size) => onBadgeSizeChange(badge.id, size)}
+              onHover={(hovering) => onBadgeHover(hovering ? badge.id : null)}
+            />
+          ))}
+        </div>
 
         {imgLoaded && (
           <a
@@ -166,6 +249,30 @@ export default function ImageCanvas({
             클릭하여 <strong>"{pendingBadge.label}"</strong> 뱃지를 배치하세요
           </div>
         )}
+      </div>
+
+      {/* ── Zoom Controls ── */}
+      <div className="canvas-zoom-controls">
+        <button className="zoom-btn" onClick={handleZoomOut} title="축소">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </button>
+        <button className="zoom-pct" onClick={handleZoomReset} title="100%로 초기화">
+          {Math.round(zoom * 100)}%
+        </button>
+        <button className="zoom-btn" onClick={handleZoomIn} title="확대">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </button>
+        <div className="zoom-divider" />
+        <button className="zoom-btn" onClick={handleFitScreen} title="화면에 맞추기">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
       </div>
     </div>
   )

@@ -72,6 +72,14 @@
   color: var(--accent);
 }
 
+/* Zoom layer wraps image + badges so they scale together */
+.canvas-zoom-layer {
+  position: relative;
+  display: inline-block;
+  transition: transform 0.12s ease;
+  will-change: transform;
+}
+
 .canvas-image {
   max-width: 100%;
   max-height: 100%;
@@ -80,13 +88,81 @@
   display: block;
   border-radius: 6px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.6);
-  background: #ffffff;          /* Figma 투명 배경 프레임 대응 */
+  background: #ffffff;
   opacity: 0;
   transition: opacity 0.3s;
   user-select: none;
   pointer-events: none;
 }
 .canvas-image.visible { opacity: 1; }
+
+/* ── Zoom Controls Bar ── */
+.canvas-zoom-controls {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(18, 18, 22, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 4px 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  z-index: 50;
+}
+
+.zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.zoom-btn:hover {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+.zoom-btn:active {
+  background: rgba(255,255,255,0.18);
+}
+
+.zoom-pct {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 30px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255,255,255,0.9);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s;
+  padding: 0 4px;
+}
+.zoom-pct:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.zoom-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255,255,255,0.15);
+  margin: 0 4px;
+}
 
 /* 배지 핀 */
 .badge-pin {
