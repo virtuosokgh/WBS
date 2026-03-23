@@ -41,3 +41,22 @@ export interface SavedProject {
   savedAt: number   // Date.now() timestamp
   screens: Screen[]
 }
+
+/** Figma 문서 트리 노드 (Page → Frame → Layer 계층) */
+export interface FigmaTreeNode {
+  id: string
+  name: string
+  type: string // PAGE, FRAME, COMPONENT, GROUP, INSTANCE, TEXT, VECTOR, etc.
+  width?: number
+  height?: number
+  children?: FigmaTreeNode[]
+  pageId?: string
+  pageName?: string
+}
+
+/** 페이지 단위 트리 구조 */
+export interface FigmaPageTree {
+  id: string
+  name: string
+  frames: FigmaTreeNode[] // top-level children of the page
+}

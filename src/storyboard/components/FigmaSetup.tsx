@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { parseFigmaUrl, fetchFigmaNodeMeta, fetchFigmaImageUrl, fetchFigmaImageUrls } from '../figmaUtils'
-import { FigmaFrame } from '../types'
+import { parseFigmaUrl, fetchFigmaNodeMeta, fetchFigmaImageUrl, fetchFigmaImageUrls, fetchFigmaNodeTree } from '../figmaUtils'
+import { FigmaFrame, FigmaPageTree } from '../types'
 import './FigmaSetup.css'
 
 interface Props {
-  onFramesLoaded: (frames: FigmaFrame[]) => void
+  onFramesLoaded: (frames: FigmaFrame[], tree?: FigmaPageTree[]) => void
 }
 
 export default function FigmaSetup({ onFramesLoaded }: Props) {
@@ -49,7 +49,10 @@ export default function FigmaSetup({ onFramesLoaded }: Props) {
       } else {
         // 파일 URL → 전체 프레임 자동 수집 후 각각 별도 화면으로 추가
         setStatus('프레임 목록 분석 중...')
-        const list = await fetchFigmaNodeMeta(parsed.fileKey, null, token.trim())
+        const [list, tree] = await Promise.all([
+          fetchFigmaNodeMeta(parsed.fileKey, null, token.trim()),
+          fetchFigmaNodeTree(parsed.fileKey, token.trim()).catch(() => [] as FigmaPageTree[]),
+        ])
         if (list.length === 0) throw new Error('파일에 프레임이 없습니다.')
 
         setStatus(`${list.length}개 화면 이미지 가져오는 중...`)
@@ -70,7 +73,7 @@ export default function FigmaSetup({ onFramesLoaded }: Props) {
           }))
 
         if (frames.length === 0) throw new Error('가져올 수 있는 프레임이 없습니다.')
-        onFramesLoaded(frames)
+        onFramesLoaded(frames, tree)
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.'

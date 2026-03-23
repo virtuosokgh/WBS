@@ -119,3 +119,72 @@ export async function fetchFigmaImageUrls(
   )
   return data.images ?? {}
 }
+
+/* ──────────────────────────────────────────────────────
+   Figma 문서 트리 계층 가져오기
+────────────────────────────────────────────────────── */
+
+import type { FigmaTreeNode, FigmaPageTree } from './types'
+
+/**
+ * Figma 노드를 FigmaTreeNode로 변환 (maxDepth 제한)
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toTreeNode(node: any, depth: number, maxDepth: number, pageId: string, pageName: string): FigmaTreeNode {
+  const bbox = node.absoluteBoundingBox || node.size
+  const result: FigmaTreeNode = {
+    id: node.id,
+    name: node.name,
+    type: node.type,
+    pageId,
+    pageName,
+  }
+  if (bbox) {
+    result.width = bbox.width
+    result.height = bbox.height
+  }
+  if (node.children && depth < maxDepth) {
+    result.children = node.children.map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (child: any) => toTreeNode(child, depth + 1, maxDepth, pageId, pageName)
+    )
+  }
+  return result
+}
+
+/**
+ * 파일 전체 문서 트리를 Page → Frame → Layer 계층으로 가져오기
+ * 각 프레임 하위는 maxDepth(기본 3)까지만 수집
+ */
+export async function fetchFigmaNodeTree(
+  fileKey: string,
+  token: string,
+  maxDepth = 3
+): Promise<FigmaPageTree[]> {
+  // depth 파라미터 없이 전체 트리 요청 (children 포함)
+  const data = await figmaFetch(`/v1/files/${fileKey}?depth=${maxDepth + 2}`, token)
+  const pages: FigmaPageTree[] = []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const page of (data.document?.children ?? []) as any[]) {
+    if (page.type !== 'CANVAS') continue
+    const frames: FigmaTreeNode[] = (page.children ?? []).map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (child: any) => toTreeNode(child, 0, maxDepth, page.id, page.name)
+    )
+    pages.push({ id: page.id, name: page.name, frames })
+  }
+
+  return pages
+}
+
+/**
+ * 단일 노드의 PNG 이미지 URL 가져오기
+ */
+export async function fetchFigmaNodeImage(
+  fileKey: string,
+  nodeId: string,
+  token: string
+): Promise<string> {
+  return fetchFigmaImageUrl(fileKey, nodeId, token)
+}

@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { Badge, BadgeSize, Screen, FigmaFrame, SavedProject } from './types'
-import { parseFigmaUrl, fetchFigmaNodeMeta, fetchFigmaImageUrls } from './figmaUtils'
+import { Badge, BadgeSize, Screen, FigmaFrame, FigmaPageTree, FigmaTreeNode, SavedProject } from './types'
+import { parseFigmaUrl, fetchFigmaNodeMeta, fetchFigmaImageUrls, fetchFigmaNodeTree, fetchFigmaNodeImage } from './figmaUtils'
 import FigmaSetup from './components/FigmaSetup'
 import Toolbar from './components/Toolbar'
 import ImageCanvas from './components/ImageCanvas'
@@ -44,6 +44,8 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
   const [showLibrary, setShowLibrary] = useState(false)
   const [showSpec, setShowSpec] = useState(false)
   const [showAutoPlan, setShowAutoPlan] = useState(false)
+  const [figmaTree, setFigmaTree] = useState<FigmaPageTree[]>([])
+  const [treeLoading, setTreeLoading] = useState(false)
 
   // Load from Supabase on mount
   useEffect(() => {
@@ -103,6 +105,55 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
   }, [screens])
 
   const existingFrameIds = useMemo(() => screens.map(s => s.frame.id), [screens])
+
+  // Fetch the full Figma document tree when we have a fileKey
+  const treeFetchedRef = useRef(false)
+  useEffect(() => {
+    if (!figmaFileKey || treeFetchedRef.current || figmaTree.length > 0) return
+    const token = localStorage.getItem('figma_token') || ''
+    if (!token) return
+    treeFetchedRef.current = true
+    setTreeLoading(true)
+    fetchFigmaNodeTree(figmaFileKey, token)
+      .then(tree => setFigmaTree(tree))
+      .catch(() => { /* tree is supplementary, don't block on failure */ })
+      .finally(() => setTreeLoading(false))
+  }, [figmaFileKey, figmaTree.length])
+
+  // Handle tree node selection: create a screen on-the-fly if needed
+  const handleTreeNodeSelect = useCallback(async (node: FigmaTreeNode) => {
+    // Check if screen already exists
+    const existing = screens.find(s => s.frame.id === node.id)
+    if (existing) {
+      setActiveScreenId(existing.id)
+      setSelectedBadgeId(null)
+      return
+    }
+
+    if (!figmaFileKey) return
+    const token = localStorage.getItem('figma_token') || ''
+    if (!token) return
+
+    try {
+      const imageUrl = await fetchFigmaNodeImage(figmaFileKey, node.id, token)
+      const frame: FigmaFrame = {
+        id: node.id,
+        name: node.name,
+        imageUrl,
+        figmaUrl: `https://www.figma.com/file/${figmaFileKey}?node-id=${node.id.replace(':', '-')}`,
+        width: node.width || 0,
+        height: node.height || 0,
+        pageId: node.pageId || '',
+        pageName: node.pageName || '',
+      }
+      const newScreen: Screen = { id: generateId(), frame, badges: [] }
+      setScreens(prev => [...prev, newScreen])
+      setActiveScreenId(newScreen.id)
+      setSelectedBadgeId(null)
+    } catch (e) {
+      alert('노드 이미지를 가져올 수 없습니다: ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }, [screens, figmaFileKey])
 
   const handleSwitchScreen = useCallback((id: string) => {
     setActiveScreenId(id)
@@ -301,6 +352,16 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
     setPendingBadge(null)
   }, [screens])
 
+  const handleNewProject = useCallback(() => {
+    if (screens.length > 0 && !confirm('현재 스토리보드를 초기화하고 새 Figma URL을 입력하시겠습니까?')) return
+    setScreens([])
+    setActiveScreenId(null)
+    setSelectedBadgeId(null)
+    setPendingBadge(null)
+    setFigmaTree([])
+    treeFetchedRef.current = false
+  }, [screens])
+
   const handleExport = useCallback(async () => {
     if (screens.length === 0 || exporting) return
     setExporting(true)
@@ -340,10 +401,13 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
     return (
       <div className="sb-root">
         <FigmaSetup
-          onFramesLoaded={(frames) => {
+          onFramesLoaded={(frames, tree) => {
             const newScreens: Screen[] = frames.map(frame => ({ id: generateId(), frame, badges: [] }))
             setScreens(newScreens)
             setActiveScreenId(newScreens[0].id)
+            if (tree && tree.length > 0) {
+              setFigmaTree(tree)
+            }
           }}
         />
       </div>
@@ -369,6 +433,7 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
           showSpec={showSpec}
           onToggleSpec={() => setShowSpec(v => !v)}
           onAutoPlan={canEdit ? () => setShowAutoPlan(true) : undefined}
+          onNewProject={canEdit ? handleNewProject : undefined}
           canEdit={canEdit}
         />
         <div className="app-body">
@@ -380,6 +445,8 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
             onRefresh={canEdit ? handleSync : undefined}
             onRemoveScreen={canEdit ? handleRemoveScreen : undefined}
             canEdit={canEdit}
+            figmaTree={figmaTree}
+            onTreeNodeSelect={canEdit ? handleTreeNodeSelect : undefined}
           />
           {activeFrame && showSpec ? (
             <SpecView frame={activeFrame} />

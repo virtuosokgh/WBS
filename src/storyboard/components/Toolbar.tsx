@@ -18,6 +18,7 @@ interface Props {
   showSpec?: boolean
   onToggleSpec?: () => void
   onAutoPlan?: () => void
+  onNewProject?: () => void
   canEdit?: boolean
 }
 
@@ -37,6 +38,7 @@ export default function Toolbar({
   showSpec = false,
   onToggleSpec,
   onAutoPlan,
+  onNewProject,
   canEdit = true,
 }: Props) {
   const [input, setInput] = useState('')
@@ -60,6 +62,15 @@ export default function Toolbar({
           <span>Storyboard</span>
         </div>
         <div className="toolbar-divider" />
+        {canEdit && onNewProject && (
+          <button className="btn-ghost" onClick={onNewProject} title="새 Figma URL로 변경">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M14 2v6h6M12 18v-6M9 15h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            새 작업
+          </button>
+        )}
         <button className="btn-ghost auto-plan" onClick={onAutoPlan} title="Claude AI로 자동 기획 생성">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
