@@ -367,6 +367,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
 
                 {filteredTasks.map(task => {
                   const { left, width } = getBarStyle(task)
+                  const assignee = members.find(m => m.id === task.assignee_id)
                   const barColor = STATUS_BAR_COLORS[task.status] || 'bg-gray-300'
                   const hasDeliverable = !!(task.deliverable_url || task.deliverable_image)
                   return (
@@ -376,16 +377,24 @@ export default function GanttView({ projectId, onGoToScreen }) {
                       style={{ height: ROW_HEIGHT }}
                     >
                       <div
-                        className={`absolute rounded-md ${barColor} flex items-center px-2 overflow-hidden group`}
+                        className={`absolute rounded-md ${barColor} flex items-center px-2 overflow-hidden group/bar`}
                         style={{ left, width, height: 26 }}
-                        title={`${task.name}: ${formatDate(task.start_date)} ~ ${formatDate(task.end_date)}`}
                       >
                         <span className="text-xs text-white font-medium truncate flex-1">{task.name}</span>
                         {/* 바 위 아이콘 */}
-                        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover/bar:opacity-100 transition-opacity">
                           {task.jira_url && <ExternalLink size={9} className="text-white" />}
                           {hasDeliverable && <Package size={9} className="text-white" />}
                           {task.screen_ref && <Monitor size={9} className="text-white" />}
+                        </div>
+                        {/* 커스텀 툴팁 */}
+                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 pointer-events-none opacity-0 group-hover/bar:opacity-100 transition-opacity z-50">
+                          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap max-w-xs">
+                            <div className="font-semibold mb-0.5">{task.name}</div>
+                            <div className="text-gray-300">{formatDate(task.start_date)} ~ {formatDate(task.end_date)}</div>
+                            {assignee && <div className="text-gray-400 mt-0.5">담당: {assignee.name}</div>}
+                          </div>
+                          <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900" />
                         </div>
                       </div>
                     </div>
