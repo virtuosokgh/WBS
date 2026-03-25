@@ -360,11 +360,12 @@ export default function GanttView({ projectId, onGoToScreen }) {
                   ) : null
                 })}
 
-                {filteredTasks.map(task => {
+                {filteredTasks.map((task, taskIdx) => {
                   const { left, width } = getBarStyle(task)
                   const assignee = members.find(m => m.id === task.assignee_id)
                   const barColor = STATUS_BAR_COLORS[task.status] || 'bg-gray-300'
                   const hasDeliverable = !!(task.deliverable_url || task.deliverable_image)
+                  const showBelow = taskIdx === 0
                   return (
                     <div
                       key={task.id}
@@ -382,14 +383,24 @@ export default function GanttView({ projectId, onGoToScreen }) {
                           {hasDeliverable && <Package size={9} className="text-white" />}
                           {task.screen_ref && <Monitor size={9} className="text-white" />}
                         </div>
-                        {/* 커스텀 툴팁 */}
-                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 pointer-events-none opacity-0 group-hover/bar:opacity-100 transition-opacity duration-150" style={{ zIndex: 999 }}>
+                        {/* 커스텀 툴팁 - 첫 태스크는 아래로, 나머지는 위로 */}
+                        <div
+                          className={`absolute left-1/2 -translate-x-1/2 pointer-events-none opacity-0 group-hover/bar:opacity-100 transition-opacity duration-150 ${
+                            showBelow ? 'top-full mt-2' : 'bottom-full mb-2'
+                          }`}
+                          style={{ zIndex: 999 }}
+                        >
                           <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
                             <div className="font-semibold mb-0.5">{task.name}</div>
                             <div className="text-gray-300">{formatDate(task.start_date)} ~ {formatDate(task.end_date)}</div>
                             {assignee && <div className="text-gray-400 mt-0.5">담당: {assignee.name}</div>}
                           </div>
-                          <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900" />
+                          {/* 화살표: 위로 표시할 때는 아래 화살표, 아래로 표시할 때는 위 화살표 */}
+                          <div className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-transparent ${
+                            showBelow
+                              ? 'bottom-full border-b-4 border-b-gray-900'
+                              : 'top-full border-t-4 border-t-gray-900'
+                          }`} />
                         </div>
                       </div>
                     </div>
