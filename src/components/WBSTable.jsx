@@ -227,7 +227,6 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
               </div>
               <div className="min-w-0">
                 <div className="text-xs text-gray-700 leading-tight truncate">{assignee.name}</div>
-                <div className={`text-xs px-1 rounded font-medium inline-block ${ROLE_COLORS[assignee.role] || 'bg-gray-100 text-gray-600'}`}>{assignee.role}</div>
               </div>
             </div>
           ) : <span className="text-xs text-gray-300">-</span>}

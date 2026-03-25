@@ -241,13 +241,8 @@ export default function GanttView({ projectId, onGoToScreen }) {
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium text-gray-800 truncate">{task.name}</div>
                       {assignee ? (
-                        <div className="text-xs text-gray-400 flex items-center gap-1">
+                        <div className="text-xs text-gray-400">
                           <span>{assignee.name}</span>
-                          {assignee.role && (
-                            <span className={`px-1 rounded text-xs font-medium ${ROLE_COLORS[assignee.role] || 'bg-gray-100 text-gray-600'}`}>
-                              {assignee.role}
-                            </span>
-                          )}
                         </div>
                       ) : (
                         <div className="text-xs text-gray-300">미배정</div>
@@ -306,7 +301,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
             </div>
 
             {/* Right: 바 영역 */}
-            <div className="flex-1 overflow-x-auto">
+            <div className="flex-1 overflow-x-auto" style={{ overflow: 'auto visible', clipPath: 'none' }}>
               {/* 월 헤더 */}
               <div className="flex border-b border-gray-200 bg-gray-50" style={{ height: 24 }}>
                 {months.map(m => {
@@ -377,8 +372,8 @@ export default function GanttView({ projectId, onGoToScreen }) {
                       style={{ height: ROW_HEIGHT }}
                     >
                       <div
-                        className={`absolute rounded-md ${barColor} flex items-center px-2 overflow-hidden group/bar`}
-                        style={{ left, width, height: 26 }}
+                        className={`absolute rounded-md ${barColor} flex items-center px-2 group/bar`}
+                        style={{ left, width, height: 26, overflow: 'visible' }}
                       >
                         <span className="text-xs text-white font-medium truncate flex-1">{task.name}</span>
                         {/* 바 위 아이콘 */}
@@ -388,8 +383,8 @@ export default function GanttView({ projectId, onGoToScreen }) {
                           {task.screen_ref && <Monitor size={9} className="text-white" />}
                         </div>
                         {/* 커스텀 툴팁 */}
-                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 pointer-events-none opacity-0 group-hover/bar:opacity-100 transition-opacity z-50">
-                          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap max-w-xs">
+                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 pointer-events-none opacity-0 group-hover/bar:opacity-100 transition-opacity duration-150" style={{ zIndex: 999 }}>
+                          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
                             <div className="font-semibold mb-0.5">{task.name}</div>
                             <div className="text-gray-300">{formatDate(task.start_date)} ~ {formatDate(task.end_date)}</div>
                             {assignee && <div className="text-gray-400 mt-0.5">담당: {assignee.name}</div>}
