@@ -128,17 +128,17 @@ export default function WBSTable({ projectId, canEdit = true }) {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[900px]">
+          <table className="w-full text-sm" style={{ minWidth: '1100px' }}>
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-8">#</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 40 }}>#</th>
                 <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">작업명</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-28">담당자</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-24">상태</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-16">우선순위</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-24">시작일</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-24">종료일</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 w-16">D-Day</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 120 }}>담당자</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 100 }}>상태</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 80 }}>우선순위</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 100 }}>시작일</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 100 }}>종료일</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 60 }}>D-Day</th>
                 <th className="py-2 px-3 w-20"></th>
               </tr>
             </thead>
@@ -219,20 +219,20 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
             )}
           </div>
         </td>
-        <td className="py-2 px-3">
+        <td className="py-2 px-3 whitespace-nowrap">
           {assignee ? (
             <div className="flex items-center gap-1.5">
               <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
                 {assignee.name[0]}
               </div>
-              <div>
-                <div className="text-xs text-gray-700 leading-tight">{assignee.name}</div>
-                <div className={`text-xs px-1 rounded font-medium ${ROLE_COLORS[assignee.role] || 'bg-gray-100 text-gray-600'}`}>{assignee.role}</div>
+              <div className="min-w-0">
+                <div className="text-xs text-gray-700 leading-tight truncate">{assignee.name}</div>
+                <div className={`text-xs px-1 rounded font-medium inline-block ${ROLE_COLORS[assignee.role] || 'bg-gray-100 text-gray-600'}`}>{assignee.role}</div>
               </div>
             </div>
           ) : <span className="text-xs text-gray-300">-</span>}
         </td>
-        <td className="py-2 px-3">
+        <td className="py-2 px-3 whitespace-nowrap">
           <select
             value={task.status || 'todo'}
             onChange={e => onStatusChange?.(task.id, e.target.value)}
@@ -242,11 +242,11 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
             {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </td>
-        <td className="py-2 px-3">
+        <td className="py-2 px-3 whitespace-nowrap">
           <span className={`text-xs font-medium ${priority.color}`}>{priority.label}</span>
         </td>
-        <td className="py-2 px-3 text-xs text-gray-500">{formatDate(task.start_date)}</td>
-        <td className="py-2 px-3 text-xs">
+        <td className="py-2 px-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(task.start_date)}</td>
+        <td className="py-2 px-3 text-xs whitespace-nowrap">
           <span className={isOverdue ? 'text-red-500 font-medium' : 'text-gray-500'}>{formatDate(task.end_date)}</span>
         </td>
         <td className="py-2 px-3">
