@@ -216,7 +216,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
           </button>
         </div>
       ) : (
-        <div className="overflow-x-auto border border-gray-200 rounded-xl">
+        <div className="overflow-x-auto border border-gray-200 rounded-xl" style={{ overflow: 'visible' }}>
           <div className="flex" style={{ minWidth: `${320 + days.length * DAY_WIDTH}px` }}>
             {/* Left: 작업명 + 액션 버튼 */}
             <div className="flex-shrink-0 w-80 border-r border-gray-200">
@@ -301,7 +301,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
             </div>
 
             {/* Right: 바 영역 */}
-            <div className="flex-1 overflow-x-auto" style={{ overflow: 'auto visible', clipPath: 'none' }}>
+            <div className="flex-1" style={{ overflow: 'visible' }}>
               {/* 월 헤더 */}
               <div className="flex border-b border-gray-200 bg-gray-50" style={{ height: 24 }}>
                 {months.map(m => {

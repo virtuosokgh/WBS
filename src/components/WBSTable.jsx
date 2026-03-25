@@ -240,7 +240,14 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
 
   return (
     <>
-      <tr className="border-b border-gray-100 hover:bg-gray-50 group">
+      <tr
+        className="border-b border-gray-100 hover:bg-gray-50 group"
+        draggable
+        onDragStart={e => {
+          e.dataTransfer.setData('text/task-id', task.id)
+          e.dataTransfer.effectAllowed = 'copy'
+        }}
+      >
         <td className="py-2 px-3 text-xs text-gray-400">{depth === 0 ? index : ''}</td>
         <td className="py-2 px-3">
           <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 20}px` }}>
@@ -263,9 +270,7 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
               <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
                 {assignee.name[0]}
               </div>
-              <div className="min-w-0">
-                <div className="text-xs text-gray-700 leading-tight truncate">{assignee.name}</div>
-              </div>
+              <span className="text-xs text-gray-700 truncate">{assignee.name}</span>
             </div>
           ) : <span className="text-xs text-gray-300">-</span>}
         </td>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock } from 'lucide-react'
-import { getSprints, getActiveSprint, getNextSprintNumber, createSprint, completeSprint, addTaskToSprint } from '../lib/sprints'
-import { formatDate } from '../utils/helpers'
+import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X } from 'lucide-react'
+import { getSprints, getActiveSprint, getNextSprintNumber, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint } from '../lib/sprints'
+import { formatDate, getStatusInfo } from '../utils/helpers'
 import Modal from './Modal'
 
 const STATUS_BADGE = {
@@ -19,21 +19,21 @@ function SprintStatusBadge({ status }) {
   )
 }
 
-export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange }) {
+export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange, onRefreshSprints }) {
   const [sprints, setSprints] = useState([])
   const [activeSprint, setActiveSprint] = useState(null)
-  const [viewingSprint, setViewingSprint] = useState(null) // the sprint currently being viewed
+  const [viewingSprint, setViewingSprint] = useState(null)
   const [expanded, setExpanded] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
   const [showSelector, setShowSelector] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
 
   const refresh = useCallback(() => {
     const all = getSprints(projectId)
     setSprints(all)
     const active = all.find(s => s.status === 'active') || null
     setActiveSprint(active)
-    // If currently viewing a sprint that still exists, keep it; otherwise show active
     setViewingSprint(prev => {
       if (prev) {
         const found = all.find(s => s.id === prev.id)
@@ -45,14 +45,17 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange 
 
   useEffect(() => { refresh() }, [refresh])
 
-  // Notify parent about which sprint is being viewed
   useEffect(() => {
     onSprintChange?.(viewingSprint)
   }, [viewingSprint, onSprintChange])
 
+  // Expose refresh to parent
+  useEffect(() => {
+    onRefreshSprints?.(() => refresh)
+  }, [onRefreshSprints, refresh])
+
   function handleCreate(formData) {
     const sprint = createSprint(projectId, formData)
-    // Auto-assign all existing incomplete tasks to the new sprint
     if (tasks) {
       tasks.forEach(t => {
         if (t.status !== 'done') {
@@ -66,7 +69,6 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange 
 
   function handleComplete() {
     if (!activeSprint) return
-    // Find tasks that are not done — these carry over
     const incompleteTasks = tasks
       ? tasks.filter(t => activeSprint.taskIds.includes(t.id) && t.status !== 'done')
       : []
@@ -81,16 +83,41 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange 
     setShowSelector(false)
   }
 
+  function handleRemoveTask(taskId) {
+    if (!activeSprint) return
+    removeTaskFromSprint(projectId, activeSprint.id, taskId)
+    refresh()
+  }
+
+  // Drag & Drop handlers
+  function handleDragOver(e) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    setDragOver(true)
+  }
+
+  function handleDragLeave() {
+    setDragOver(false)
+  }
+
+  function handleDrop(e) {
+    e.preventDefault()
+    setDragOver(false)
+    const taskId = e.dataTransfer.getData('text/task-id')
+    if (taskId && activeSprint) {
+      addTaskToSprint(projectId, activeSprint.id, taskId)
+      refresh()
+    }
+  }
+
   const isViewingPast = viewingSprint && viewingSprint.status === 'completed'
   const currentSprint = viewingSprint || activeSprint
 
-  // Sprint stats
-  const sprintTaskCount = currentSprint
-    ? tasks.filter(t => currentSprint.taskIds.includes(t.id)).length
-    : 0
-  const sprintDoneCount = currentSprint
-    ? tasks.filter(t => currentSprint.taskIds.includes(t.id) && t.status === 'done').length
-    : 0
+  // Sprint tasks
+  const sprintTasks = currentSprint
+    ? tasks.filter(t => currentSprint.taskIds.includes(t.id))
+    : []
+  const sprintDoneCount = sprintTasks.filter(t => t.status === 'done').length
 
   return (
     <div className="mb-4">
@@ -102,18 +129,22 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange 
         {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         <Target size={14} className="text-indigo-500" />
         스프린트
-        {activeSprint && (
-          <SprintStatusBadge status={activeSprint.status} />
-        )}
+        {activeSprint && <SprintStatusBadge status={activeSprint.status} />}
         {!activeSprint && sprints.length === 0 && (
           <span className="text-xs text-gray-400 font-normal ml-1">설정되지 않음</span>
         )}
       </button>
 
       {expanded && (
-        <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+        <div
+          className={`border rounded-lg bg-white transition-colors ${
+            dragOver ? 'border-indigo-400 bg-indigo-50/30' : 'border-gray-200'
+          }`}
+          onDragOver={currentSprint && !isViewingPast ? handleDragOver : undefined}
+          onDragLeave={handleDragLeave}
+          onDrop={currentSprint && !isViewingPast ? handleDrop : undefined}
+        >
           {!currentSprint ? (
-            /* No sprint exists */
             <div className="flex items-center justify-between px-4 py-3">
               <p className="text-sm text-gray-500">활성 스프린트가 없습니다.</p>
               {canEdit && (
@@ -127,11 +158,10 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange 
               )}
             </div>
           ) : (
-            /* Sprint info bar */
             <div className="px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                {/* Left: Sprint info */}
-                <div className="flex items-center gap-3 min-w-0 flex-1">
+              {/* Sprint header */}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0 flex-wrap">
                   {/* Sprint selector */}
                   <div className="relative">
                     <button
@@ -144,8 +174,8 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange 
 
                     {showSelector && (
                       <>
-                        <div className="fixed inset-0 z-10" onClick={() => setShowSelector(false)} />
-                        <div className="absolute top-full left-0 mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[220px]">
+                        <div className="fixed inset-0 z-30" onClick={() => setShowSelector(false)} />
+                        <div className="absolute top-full left-0 mt-1 z-40 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[240px] max-h-[300px] overflow-y-auto">
                           <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                             스프린트 기록
                           </div>
@@ -160,7 +190,10 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange 
                                 viewingSprint?.id === s.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
                               }`}
                             >
-                              <span className="truncate">{s.name}</span>
+                              <div className="min-w-0">
+                                <div className="truncate font-medium">{s.name}</div>
+                                <div className="text-xs text-gray-400">{formatDate(s.startDate)} ~ {formatDate(s.endDate)}</div>
+                              </div>
                               <SprintStatusBadge status={s.status} />
                             </button>
                           ))}
@@ -176,19 +209,12 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange 
                     {formatDate(currentSprint.startDate)} ~ {formatDate(currentSprint.endDate)}
                   </div>
 
-                  {currentSprint.description && (
-                    <span className="text-xs text-gray-400 truncate max-w-[200px]" title={currentSprint.description}>
-                      {currentSprint.description}
-                    </span>
-                  )}
-
-                  {/* Task count */}
                   <span className="text-xs text-gray-500 whitespace-nowrap">
-                    {sprintDoneCount}/{sprintTaskCount} 완료
+                    {sprintDoneCount}/{sprintTasks.length} 완료
                   </span>
                 </div>
 
-                {/* Right: Actions */}
+                {/* Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {isViewingPast && activeSprint && (
                     <button
@@ -230,14 +256,70 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange 
               </div>
 
               {/* Progress bar */}
-              {sprintTaskCount > 0 && (
+              {sprintTasks.length > 0 && (
                 <div className="mt-2">
                   <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-indigo-500 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.round((sprintDoneCount / sprintTaskCount) * 100)}%` }}
+                      style={{ width: `${Math.round((sprintDoneCount / sprintTasks.length) * 100)}%` }}
                     />
                   </div>
+                </div>
+              )}
+
+              {/* Sprint description */}
+              {currentSprint.description && (
+                <p className="text-xs text-gray-400 mt-2 truncate" title={currentSprint.description}>
+                  {currentSprint.description}
+                </p>
+              )}
+
+              {/* Sprint task list (compact) */}
+              {sprintTasks.length > 0 && (
+                <div className="mt-3 border-t border-gray-100 pt-2">
+                  <div className="text-xs font-medium text-gray-500 mb-1.5">스프린트 작업 ({sprintTasks.length})</div>
+                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                    {sprintTasks.map(t => {
+                      const st = getStatusInfo(t.status)
+                      return (
+                        <div key={t.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 group/task text-xs">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                            t.status === 'done' ? 'bg-green-500' :
+                            t.status === 'in_progress' ? 'bg-blue-500' :
+                            t.status === 'review' ? 'bg-yellow-500' :
+                            'bg-gray-300'
+                          }`} />
+                          <span className={`flex-1 truncate ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                            {t.name}
+                          </span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
+                          {canEdit && !isViewingPast && (
+                            <button
+                              onClick={() => handleRemoveTask(t.id)}
+                              className="opacity-0 group-hover/task:opacity-100 p-0.5 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-all"
+                              title="스프린트에서 제거"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Drop hint when empty */}
+              {sprintTasks.length === 0 && !isViewingPast && (
+                <div className="mt-3 border-2 border-dashed border-gray-200 rounded-lg py-4 text-center text-xs text-gray-400">
+                  아래 작업 목록에서 작업을 드래그하여 스프린트에 추가하세요
+                </div>
+              )}
+
+              {/* Drag over indicator */}
+              {dragOver && (
+                <div className="mt-2 border-2 border-dashed border-indigo-400 rounded-lg py-3 text-center text-xs text-indigo-500 font-medium bg-indigo-50/50">
+                  여기에 놓아 스프린트에 추가
                 </div>
               )}
             </div>
@@ -245,7 +327,6 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange 
         </div>
       )}
 
-      {/* Create Sprint Modal */}
       {showCreateModal && (
         <SprintCreateModal
           projectId={projectId}
@@ -254,7 +335,6 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange 
         />
       )}
 
-      {/* Complete Sprint Confirmation */}
       {showCompleteConfirm && activeSprint && (
         <SprintCompleteModal
           sprint={activeSprint}
@@ -299,12 +379,7 @@ function SprintCreateModal({ projectId, onClose, onCreate }) {
   }
 
   return (
-    <Modal
-      title="새 스프린트"
-      onClose={onClose}
-      onConfirm={handleConfirm}
-      confirmLabel="스프린트 시작"
-    >
+    <Modal title="새 스프린트" onClose={onClose} onConfirm={handleConfirm} confirmLabel="스프린트 시작">
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">스프린트 이름</label>
@@ -316,38 +391,26 @@ function SprintCreateModal({ projectId, onClose, onCreate }) {
             autoFocus
           />
         </div>
-
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              시작일 <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">시작일 <span className="text-red-500">*</span></label>
             <input
-              type="date"
-              value={form.startDate}
+              type="date" value={form.startDate}
               onChange={e => { setForm(f => ({ ...f, startDate: e.target.value })); setErrors(er => ({ ...er, startDate: '' })) }}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 transition-colors ${
-                errors.startDate ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'
-              }`}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${errors.startDate ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'}`}
             />
             {errors.startDate && <p className="mt-1 text-xs text-red-500">{errors.startDate}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              종료일 <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">종료일 <span className="text-red-500">*</span></label>
             <input
-              type="date"
-              value={form.endDate}
+              type="date" value={form.endDate}
               onChange={e => { setForm(f => ({ ...f, endDate: e.target.value })); setErrors(er => ({ ...er, endDate: '' })) }}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 transition-colors ${
-                errors.endDate ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'
-              }`}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${errors.endDate ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'}`}
             />
             {errors.endDate && <p className="mt-1 text-xs text-red-500">{errors.endDate}</p>}
           </div>
         </div>
-
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">스프린트 목표 (선택)</label>
           <textarea
@@ -370,17 +433,11 @@ function SprintCompleteModal({ sprint, tasks, onClose, onConfirm }) {
   const incompleteTasks = sprintTasks.filter(t => t.status !== 'done')
 
   return (
-    <Modal
-      title="스프린트 완료"
-      onClose={onClose}
-      onConfirm={onConfirm}
-      confirmLabel="완료하기"
-    >
+    <Modal title="스프린트 완료" onClose={onClose} onConfirm={onConfirm} confirmLabel="완료하기">
       <div className="space-y-4">
         <p className="text-sm text-gray-700">
           <span className="font-semibold">{sprint.name}</span>을(를) 완료하시겠습니까?
         </p>
-
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2.5">
             <div className="text-xs text-green-600 font-medium">완료된 작업</div>
@@ -391,7 +448,6 @@ function SprintCompleteModal({ sprint, tasks, onClose, onConfirm }) {
             <div className="text-lg font-bold text-orange-700">{incompleteTasks.length}개</div>
           </div>
         </div>
-
         {incompleteTasks.length > 0 && (
           <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
             미완료 작업은 다음 스프린트 생성 시 자동으로 포함됩니다.
