@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import { getTasks, createTask, updateTask, deleteTask, updateTaskStatus, getProjectParticipants } from '../lib/db'
 import { STATUS_OPTIONS, ROLE_COLORS, getStatusInfo, getPriorityInfo, formatDate, getDday } from '../utils/helpers'
+import { getActiveSprint, addTaskToSprint, removeTaskFromSprint } from '../lib/sprints'
 import TaskModal from './TaskModal'
+import SprintBoard from './SprintBoard'
 
 function stripHtml(html) {
   if (!html) return ''
@@ -19,6 +21,11 @@ export default function WBSTable({ projectId, canEdit = true }) {
   const [parentForNew, setParentForNew] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [viewingSprint, setViewingSprint] = useState(null)
+
+  const handleSprintChange = useCallback((sprint) => {
+    setViewingSprint(sprint)
+  }, [])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -67,7 +74,14 @@ export default function WBSTable({ projectId, canEdit = true }) {
           : '작업 생성에 실패했습니다. 다시 시도해주세요.'
         setSaveError(msg); setSaving(false); return
       }
-      if (data) setTasks(t => [...t, data])
+      if (data) {
+        setTasks(t => [...t, data])
+        // Auto-associate new task with active sprint
+        const active = getActiveSprint(projectId)
+        if (active) {
+          addTaskToSprint(projectId, active.id, data.id)
+        }
+      }
     }
     setSaving(false)
     setShowModal(false)
@@ -78,6 +92,11 @@ export default function WBSTable({ projectId, canEdit = true }) {
     // Remove task and all descendants
     const allIds = getAllDescendants(tasks, id)
     allIds.add(id)
+    // Remove from active sprint
+    const active = getActiveSprint(projectId)
+    if (active) {
+      allIds.forEach(tid => removeTaskFromSprint(projectId, active.id, tid))
+    }
     setTasks(t => t.filter(x => !allIds.has(x.id)))
   }
 
@@ -86,9 +105,14 @@ export default function WBSTable({ projectId, canEdit = true }) {
     setTasks(t => t.map(x => x.id === id ? { ...x, status } : x))
   }
 
-  const rootTasks = tasks.filter(t => !t.parent_id)
+  // Filter tasks by viewed sprint (if viewing a specific sprint)
+  const displayTasks = viewingSprint
+    ? tasks.filter(t => viewingSprint.taskIds.includes(t.id))
+    : tasks
+
+  const rootTasks = displayTasks.filter(t => !t.parent_id)
   const childMap = {}
-  tasks.forEach(t => {
+  displayTasks.forEach(t => {
     if (t.parent_id) {
       if (!childMap[t.parent_id]) childMap[t.parent_id] = []
       childMap[t.parent_id].push(t)
@@ -101,11 +125,25 @@ export default function WBSTable({ projectId, canEdit = true }) {
     </div>
   )
 
+  const isViewingPastSprint = viewingSprint && viewingSprint.status === 'completed'
+
   return (
     <div>
+      <SprintBoard
+        projectId={projectId}
+        canEdit={canEdit}
+        tasks={tasks}
+        onSprintChange={handleSprintChange}
+      />
+
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-gray-900">작업 목록 ({tasks.length}개)</h3>
-        {canEdit && (
+        <h3 className="font-semibold text-gray-900">
+          작업 목록 ({displayTasks.length}개)
+          {isViewingPastSprint && (
+            <span className="text-xs text-gray-400 font-normal ml-2">읽기 전용</span>
+          )}
+        </h3>
+        {canEdit && !isViewingPastSprint && (
           <button
             onClick={() => openCreate(null)}
             className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
@@ -116,11 +154,11 @@ export default function WBSTable({ projectId, canEdit = true }) {
         )}
       </div>
 
-      {tasks.length === 0 ? (
+      {displayTasks.length === 0 ? (
         <div className="text-center py-16 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
           <Plus size={32} className="mx-auto mb-2 opacity-30" />
-          <p className="text-sm">작업이 없습니다</p>
-          {canEdit && (
+          <p className="text-sm">{isViewingPastSprint ? '이 스프린트에 작업이 없습니다' : '작업이 없습니다'}</p>
+          {canEdit && !isViewingPastSprint && (
             <button onClick={() => openCreate(null)} className="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
               첫 번째 작업 추가하기
             </button>
@@ -153,10 +191,10 @@ export default function WBSTable({ projectId, canEdit = true }) {
                   collapsed={collapsed}
                   members={members}
                   onToggle={id => setCollapsed(c => ({ ...c, [id]: !c[id] }))}
-                  onEdit={canEdit ? openEdit : null}
-                  onDelete={canEdit ? handleDelete : null}
-                  onStatusChange={canEdit ? handleStatusChange : null}
-                  onAddChild={canEdit ? openCreate : null}
+                  onEdit={canEdit && !isViewingPastSprint ? openEdit : null}
+                  onDelete={canEdit && !isViewingPastSprint ? handleDelete : null}
+                  onStatusChange={canEdit && !isViewingPastSprint ? handleStatusChange : null}
+                  onAddChild={canEdit && !isViewingPastSprint ? openCreate : null}
                 />
               ))}
             </tbody>
