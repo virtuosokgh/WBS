@@ -4,6 +4,11 @@ import { getTasks, createTask, updateTask, deleteTask, updateTaskStatus, getProj
 import { STATUS_OPTIONS, ROLE_COLORS, getStatusInfo, getPriorityInfo, formatDate, getDday } from '../utils/helpers'
 import TaskModal from './TaskModal'
 
+function stripHtml(html) {
+  if (!html) return ''
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim()
+}
+
 export default function WBSTable({ projectId, canEdit = true }) {
   const [tasks, setTasks] = useState([])
   const [members, setMembers] = useState([])
@@ -210,7 +215,7 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
               {task.name}
             </button>
             {task.description && (
-              <span className="text-gray-400 text-xs hidden group-hover:inline ml-1 truncate">— {task.description}</span>
+              <span className="text-gray-400 text-xs ml-1 truncate max-w-[200px] inline-block align-middle" title={stripHtml(task.description)}>— {stripHtml(task.description)}</span>
             )}
           </div>
         </td>
