@@ -35,7 +35,8 @@ export default function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
     if (error) {
       if (error.message.includes('Invalid login credentials')) setServerError('이메일 또는 비밀번호가 올바르지 않습니다.')
-      else if (error.message.includes('Email not confirmed')) setServerError('이메일 인증이 완료되지 않았습니다. 받은 편지함을 확인해주세요.')
+      else if (error.message.includes('Email not confirmed')) setServerError('계정이 아직 활성화되지 않았습니다. 잠시 후 다시 시도해주세요.')
+      else if (error.message.includes('disabled')) setServerError('로그인 기능에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')
       else setServerError(error.message)
     } else {
       sessionStorage.setItem('sb_session_active', '1')
@@ -63,7 +64,7 @@ export default function AuthPage() {
       .from('profiles').select('id').eq('email', form.email.toLowerCase().trim()).maybeSingle()
     if (existing) { setFieldError('email', '이미 가입된 이메일입니다.'); setLoading(false); return }
 
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: form.email.toLowerCase().trim(),
       password: form.password,
       options: { data: { name: form.name.trim() } },
@@ -75,9 +76,26 @@ export default function AuthPage() {
         setFieldError('email', '올바른 이메일 형식이 아닙니다.')
       else if (error.message.includes('weak'))
         setFieldError('password', '비밀번호가 너무 단순합니다. 더 복잡한 비밀번호를 사용해주세요.')
+      else if (error.message.includes('rate limit'))
+        setServerError('잠시 후 다시 시도해주세요.')
+      else if (error.message.includes('disabled'))
+        setServerError('회원가입 기능에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.')
       else setServerError(error.message)
-    } else {
-      setDone('signup')
+    } else if (signUpData?.user) {
+      // 가입 성공 → 자동 로그인 시도
+      const { error: loginErr } = await supabase.auth.signInWithPassword({
+        email: form.email.toLowerCase().trim(),
+        password: form.password,
+      })
+      if (loginErr) {
+        // 자동 로그인 실패 시 로그인 탭으로 이동
+        setServerError('')
+        setMode('login')
+        setServerError('회원가입이 완료되었습니다. 로그인해주세요.')
+      } else {
+        sessionStorage.setItem('sb_session_active', '1')
+        localStorage.setItem('sb_remember_me', 'true')
+      }
     }
     setLoading(false)
   }
@@ -93,27 +111,6 @@ export default function AuthPage() {
     if (error) setServerError(error.message)
     else setDone('forgot')
     setLoading(false)
-  }
-
-  // 회원가입 완료
-  if (done === 'signup') {
-    return (
-      <AuthLayout>
-        <div className="text-center py-4">
-          <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="text-green-600" size={28} />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">이메일을 확인해주세요</h2>
-          <p className="text-sm text-gray-500 mb-1">
-            <span className="font-medium text-gray-700">{form.email}</span> 으로
-          </p>
-          <p className="text-sm text-gray-500 mb-6">인증 메일을 발송했습니다.<br />메일의 링크를 클릭하면 가입이 완료됩니다.</p>
-          <button onClick={() => { setDone(''); setMode('login') }} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
-            로그인으로 돌아가기
-          </button>
-        </div>
-      </AuthLayout>
-    )
   }
 
   // 비밀번호 재설정 완료
