@@ -425,11 +425,11 @@ export default function GanttView({ projectId, onGoToScreen }) {
                     <div
                       key={task.id}
                       className="relative border-b border-gray-100 flex items-center"
-                      style={{ height: ROW_HEIGHT }}
+                      style={{ height: ROW_HEIGHT, zIndex: 2 }}
                     >
                       <div
                         className={`absolute rounded-md ${barColor} flex items-center px-2 group/bar`}
-                        style={{ left, width, height: 26, overflow: 'visible' }}
+                        style={{ left, width, height: 26, overflow: 'visible', zIndex: 3 }}
                       >
                         <span className="text-xs text-white font-medium truncate flex-1">{task.name}</span>
                         {/* 바 위 아이콘 - 항상 표시 */}
