@@ -358,37 +358,34 @@ export default function GanttView({ projectId, onGoToScreen }) {
                 })}
               </div>
 
-              {/* 스프린트 기간 바 */}
-              {sprints.length > 0 && minDate && (
-                <div className="relative border-b border-gray-200 bg-gray-50/50" style={{ height: 24 }}>
-                  {sprints.map(sprint => {
-                    const sStart = new Date(sprint.startDate)
-                    const sEnd = new Date(sprint.endDate)
-                    sStart.setHours(0,0,0,0)
-                    sEnd.setHours(0,0,0,0)
-                    const sLeft = Math.round((sStart - minDate) / 86400000) * DAY_WIDTH
-                    const sWidth = Math.max((Math.round((sEnd - sStart) / 86400000) + 1) * DAY_WIDTH, DAY_WIDTH)
-                    const isActive = sprint.status === 'active'
-                    return (
-                      <div
-                        key={sprint.id}
-                        className={`absolute top-1 rounded-md flex items-center px-2 text-xs font-medium ${
-                          isActive
-                            ? 'bg-indigo-100 border border-indigo-300 text-indigo-700'
-                            : 'bg-gray-100 border border-gray-300 text-gray-500'
-                        }`}
-                        style={{ left: sLeft, width: sWidth, height: 20 }}
-                        title={`${sprint.name}: ${formatDate(sprint.startDate)} ~ ${formatDate(sprint.endDate)}`}
-                      >
-                        <span className="truncate">{sprint.name}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
               {/* 행 */}
               <div className="relative">
+                {/* 스프린트 범위 배경 - 전체 높이로 표시 */}
+                {sprints.length > 0 && minDate && sprints.map(sprint => {
+                  const sStart = new Date(sprint.startDate)
+                  const sEnd = new Date(sprint.endDate)
+                  sStart.setHours(0,0,0,0)
+                  sEnd.setHours(0,0,0,0)
+                  const sLeft = Math.round((sStart - minDate) / 86400000) * DAY_WIDTH
+                  const sWidth = Math.max((Math.round((sEnd - sStart) / 86400000) + 1) * DAY_WIDTH, DAY_WIDTH)
+                  const isActive = sprint.status === 'active'
+                  return (
+                    <div key={sprint.id + '-bg'} className="absolute top-0 bottom-0" style={{ left: sLeft, width: sWidth, zIndex: 1 }}>
+                      {/* 배경 */}
+                      <div className={`absolute inset-0 ${isActive ? 'bg-indigo-50/60' : 'bg-gray-100/40'}`} />
+                      {/* 좌우 경계선 */}
+                      <div className={`absolute top-0 bottom-0 left-0 w-px ${isActive ? 'bg-indigo-300' : 'bg-gray-300'}`} style={{ opacity: 0.7 }} />
+                      <div className={`absolute top-0 bottom-0 right-0 w-px ${isActive ? 'bg-indigo-300' : 'bg-gray-300'}`} style={{ opacity: 0.7 }} />
+                      {/* 상단 라벨 */}
+                      <div className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
+                        isActive ? 'bg-indigo-500 text-white' : 'bg-gray-400 text-white'
+                      }`} style={{ zIndex: 5 }}>
+                        {sprint.name} ({formatDate(sprint.startDate)} ~ {formatDate(sprint.endDate)})
+                      </div>
+                    </div>
+                  )
+                })}
+
                 {todayLeft !== null && todayLeft >= 0 && todayLeft <= days.length * DAY_WIDTH && (
                   <div
                     className="absolute top-0 bottom-0 w-px bg-indigo-500 z-10 opacity-50"
