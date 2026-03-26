@@ -228,11 +228,11 @@ export default function GanttView({ projectId, onGoToScreen }) {
               {/* 헤더 */}
               <div className="h-12 border-b border-gray-200 flex items-end px-3 pb-1 bg-gray-50">
                 <span className="text-xs font-semibold text-gray-500 flex-1">작업명</span>
-                <div className="flex items-center flex-shrink-0" style={{ width: 170 }}>
+                <div className="flex items-center flex-shrink-0" style={{ width: 200 }}>
                   <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 46 }}>Jira</span>
                   <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 52 }}>산출물</span>
                   <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 42 }}>기획</span>
-                  <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 42 }}>상태</span>
+                  <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 60 }}>상태</span>
                 </div>
               </div>
 
@@ -267,7 +267,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
                     </div>
 
                     {/* 액션 버튼 3개 + 상태 - 고정 너비 */}
-                    <div className="flex items-center flex-shrink-0" style={{ width: 170 }}>
+                    <div className="flex items-center flex-shrink-0" style={{ width: 200 }}>
                       <button
                         onClick={() => openModal('jira', task)}
                         className={`flex items-center justify-center gap-0.5 py-1 rounded text-[10px] font-medium transition-colors ${
@@ -308,7 +308,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
                       </button>
 
                       {/* 상태 배지 */}
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium text-center ${status.color}`} style={{ width: 42 }}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium text-center whitespace-nowrap ${status.color}`} style={{ width: 60 }}>
                         {status.label}
                       </span>
                     </div>

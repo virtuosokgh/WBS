@@ -1,7 +1,9 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Modal from './Modal'
-import { STATUS_OPTIONS, PRIORITY_OPTIONS, ROLE_COLORS } from '../utils/helpers'
+import { STATUS_OPTIONS, PRIORITY_OPTIONS, ROLE_COLORS, formatDate } from '../utils/helpers'
 import { supabase } from '../lib/supabase'
+import { getTaskComments, addTaskComment, deleteTaskComment } from '../lib/db'
+import { notifyComment } from '../lib/slack'
 
 /* ── Rich Description Editor (Jira-like) ── */
 function RichEditor({ value, onChange }) {
@@ -146,7 +148,7 @@ function RichEditor({ value, onChange }) {
   )
 }
 
-export default function TaskModal({ task, members, onClose, onSave, saving = false, serverError = '' }) {
+export default function TaskModal({ task, members, onClose, onSave, saving = false, serverError = '', currentUser }) {
   const [form, setForm] = useState({
     name: task?.name || '',
     description: task?.description || '',
@@ -157,6 +159,47 @@ export default function TaskModal({ task, members, onClose, onSave, saving = fal
     endDate: task?.endDate || '',
     note: task?.note || '',
   })
+
+  // Comments
+  const [comments, setComments] = useState([])
+  const [newComment, setNewComment] = useState('')
+  const [loadingComments, setLoadingComments] = useState(false)
+  const [postingComment, setPostingComment] = useState(false)
+  const commentsEndRef = useRef(null)
+
+  useEffect(() => {
+    if (task?.id) {
+      setLoadingComments(true)
+      getTaskComments(task.id).then(({ data }) => {
+        setComments(data || [])
+        setLoadingComments(false)
+        setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+      })
+    }
+  }, [task?.id])
+
+  async function handlePostComment() {
+    if (!newComment.trim() || !task?.id) return
+    setPostingComment(true)
+    const userName = currentUser?.user_metadata?.name || currentUser?.email?.split('@')[0] || '사용자'
+    const { data, error } = await addTaskComment(task.id, {
+      userId: currentUser?.id || '',
+      userName,
+      content: newComment.trim(),
+    })
+    if (!error && data) {
+      setComments(prev => [...prev, data])
+      setNewComment('')
+      notifyComment({ taskName: task.name || form.name, comment: newComment.trim(), author: userName })
+      setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+    }
+    setPostingComment(false)
+  }
+
+  async function handleDeleteComment(commentId) {
+    await deleteTaskComment(commentId)
+    setComments(prev => prev.filter(c => c.id !== commentId))
+  }
   const [errors, setErrors] = useState({})
 
   function clearError(field) {
@@ -337,17 +380,77 @@ export default function TaskModal({ task, members, onClose, onSave, saving = fal
           </div>
         </div>
 
-        {/* 메모 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">메모</label>
-          <textarea
-            value={form.note}
-            onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
-            placeholder="추가 메모 (선택)"
-            rows={2}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-          />
-        </div>
+        {/* 댓글 (수정 모드에서만) */}
+        {task?.id && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              댓글 {comments.length > 0 && <span className="text-gray-400 font-normal">({comments.length})</span>}
+            </label>
+
+            {/* 댓글 목록 */}
+            <div className="border border-gray-200 rounded-lg bg-gray-50/50 max-h-[200px] overflow-y-auto mb-2">
+              {loadingComments ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : comments.length === 0 ? (
+                <div className="text-center py-4 text-xs text-gray-400">댓글이 없습니다</div>
+              ) : (
+                <div className="p-2 space-y-2">
+                  {comments.map(c => (
+                    <div key={c.id} className="bg-white rounded-lg px-3 py-2 border border-gray-100 group/comment">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                            {(c.user_name || '?')[0]}
+                          </div>
+                          <span className="text-xs font-medium text-gray-700">{c.user_name}</span>
+                          <span className="text-[10px] text-gray-400">
+                            {c.created_at ? new Date(c.created_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
+                        </div>
+                        {currentUser?.id === c.user_id && (
+                          <button
+                            onClick={() => handleDeleteComment(c.id)}
+                            className="opacity-0 group-hover/comment:opacity-100 text-gray-300 hover:text-red-500 text-[10px] transition-all"
+                          >
+                            삭제
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">{c.content}</p>
+                    </div>
+                  ))}
+                  <div ref={commentsEndRef} />
+                </div>
+              )}
+            </div>
+
+            {/* 댓글 입력 */}
+            <div className="flex gap-2">
+              <textarea
+                value={newComment}
+                onChange={e => setNewComment(e.target.value)}
+                placeholder="댓글을 입력하세요..."
+                rows={1}
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handlePostComment()
+                  }
+                }}
+              />
+              <button
+                onClick={handlePostComment}
+                disabled={!newComment.trim() || postingComment}
+                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0"
+              >
+                {postingComment ? '...' : '등록'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 서버 에러 */}
         {serverError && (

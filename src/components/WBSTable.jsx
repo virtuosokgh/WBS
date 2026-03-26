@@ -5,13 +5,14 @@ import { STATUS_OPTIONS, ROLE_COLORS, getStatusInfo, getPriorityInfo, formatDate
 import { getActiveSprint, addTaskToSprint, removeTaskFromSprint } from '../lib/sprints'
 import TaskModal from './TaskModal'
 import SprintBoard from './SprintBoard'
+import { notifyStatusChange, notifyTaskCreated, notifyAssigneeChange } from '../lib/slack'
 
 function stripHtml(html) {
   if (!html) return ''
   return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim()
 }
 
-export default function WBSTable({ projectId, canEdit = true }) {
+export default function WBSTable({ projectId, canEdit = true, currentUser }) {
   const [tasks, setTasks] = useState([])
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -105,8 +106,12 @@ export default function WBSTable({ projectId, canEdit = true }) {
   }
 
   async function handleStatusChange(id, status) {
+    const task = tasks.find(t => t.id === id)
+    const oldStatus = task ? getStatusInfo(task.status).label : ''
+    const newStatus = getStatusInfo(status).label
     await updateTaskStatus(id, status)
     setTasks(t => t.map(x => x.id === id ? { ...x, status } : x))
+    notifyStatusChange({ taskName: task?.name || '', oldStatus, newStatus })
   }
 
   // Determine active sprint taskIds for filtering
@@ -298,6 +303,7 @@ export default function WBSTable({ projectId, canEdit = true }) {
           onSave={handleSave}
           saving={saving}
           serverError={saveError}
+          currentUser={currentUser}
         />
       )}
     </div>

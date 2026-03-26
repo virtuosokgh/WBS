@@ -297,6 +297,35 @@ export async function updateTaskStatus(id, status) {
   return { error }
 }
 
+// ─── TASK COMMENTS ────────────────────────────────────────────
+export async function getTaskComments(taskId) {
+  const { data, error } = await supabase
+    .from('task_comments')
+    .select('*')
+    .eq('task_id', taskId)
+    .order('created_at', { ascending: true })
+  return { data: data || [], error }
+}
+
+export async function addTaskComment(taskId, { userId, userName, content }) {
+  const { data, error } = await supabase
+    .from('task_comments')
+    .insert({
+      task_id: taskId,
+      user_id: userId,
+      user_name: userName,
+      content,
+    })
+    .select()
+    .single()
+  return { data, error }
+}
+
+export async function deleteTaskComment(commentId) {
+  const { error } = await supabase.from('task_comments').delete().eq('id', commentId)
+  return { error }
+}
+
 // ─── STORYBOARD ────────────────────────────────────────────
 export async function getStoryboard(projectId) {
   const { data, error } = await supabase

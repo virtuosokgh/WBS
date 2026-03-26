@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ArrowLeft, Users, List, BarChart2, Layout, Pencil, Trash2, LogOut, Check, X, Layers, GitBranch, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Users, List, BarChart2, Layout, Pencil, Trash2, LogOut, Check, X, Layers, GitBranch, ChevronDown, Bell } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { formatDate, getDday, STATUS_OPTIONS } from '../utils/helpers'
 import { updateProject, deleteProject, getUserProjectRole } from '../lib/db'
@@ -9,6 +9,8 @@ import GanttView from './GanttView'
 import StoryboardView from './StoryboardView'
 import FlowchartView from '../storyboard/FlowchartView'
 import Footer from './Footer'
+import { getSlackWebhookUrl, setSlackWebhookUrl } from '../lib/slack'
+import Modal from './Modal'
 
 const TABS = [
   { id: 'wbs', label: '보드', icon: List },
@@ -72,6 +74,9 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
   const [nameValue, setNameValue] = useState('')
   const [savingName, setSavingName] = useState(false)
   const nameInputRef = useRef(null)
+
+  // Slack 설정
+  const [showSlackModal, setShowSlackModal] = useState(false)
 
   // 삭제
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -269,6 +274,22 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
                 </>
               )}
 
+              {/* Slack 알림 설정 */}
+              {canEdit && (
+                <button
+                  onClick={() => setShowSlackModal(true)}
+                  className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${
+                    getSlackWebhookUrl()
+                      ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                      : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title="Slack 알림 설정"
+                >
+                  <Bell size={14} />
+                  <span className="hidden sm:inline">알림</span>
+                </button>
+              )}
+
               {/* 로그아웃 */}
               <button
                 onClick={handleLogout}
@@ -318,7 +339,7 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
 
       {/* Content */}
       <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
-        {activeTab === 'wbs' && <WBSTable projectId={projectId} canEdit={canEdit} />}
+        {activeTab === 'wbs' && <WBSTable projectId={projectId} canEdit={canEdit} currentUser={user} />}
         {activeTab === 'gantt' && <GanttView projectId={projectId} onGoToScreen={goToScreen} canEdit={canEdit} />}
         {activeTab === 'planning' && activeSub === 'storyboard' && (
           <StoryboardView projectId={projectId} projectName={project?.name} initialScreenId={targetScreenId} canEdit={canEdit} />
@@ -330,6 +351,67 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
       </div>
 
       <Footer />
+
+      {/* Slack 설정 모달 */}
+      {showSlackModal && (
+        <SlackSettingsModal onClose={() => setShowSlackModal(false)} />
+      )}
     </div>
+  )
+}
+
+function SlackSettingsModal({ onClose }) {
+  const [url, setUrl] = useState(getSlackWebhookUrl())
+  const [saved, setSaved] = useState(false)
+
+  function handleSave() {
+    setSlackWebhookUrl(url)
+    setSaved(true)
+    setTimeout(() => onClose(), 800)
+  }
+
+  function handleRemove() {
+    setSlackWebhookUrl('')
+    setUrl('')
+    setSaved(true)
+    setTimeout(() => onClose(), 800)
+  }
+
+  return (
+    <Modal title="Slack 알림 설정" onClose={onClose} onConfirm={handleSave} confirmLabel={saved ? '저장됨 ✓' : '저장'} size="md">
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">
+          Slack Incoming Webhook URL을 설정하면 작업 상태 변경, 담당자 변경, 댓글 등록 시 알림을 받을 수 있습니다.
+        </p>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Webhook URL</label>
+          <input
+            type="url"
+            value={url}
+            onChange={e => { setUrl(e.target.value); setSaved(false) }}
+            placeholder="https://hooks.slack.com/services/..."
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            autoFocus
+          />
+        </div>
+
+        <div className="bg-gray-50 rounded-lg px-3 py-2.5 text-xs text-gray-500 space-y-1">
+          <p className="font-medium text-gray-600">설정 방법:</p>
+          <p>1. Slack에서 원하는 채널의 설정 → 연동 → Incoming Webhook 추가</p>
+          <p>2. Webhook URL을 복사하여 위에 붙여넣기</p>
+          <p>3. 저장하면 변경사항이 해당 채널로 알림됩니다</p>
+        </div>
+
+        {getSlackWebhookUrl() && (
+          <button
+            onClick={handleRemove}
+            className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+          >
+            알림 해제
+          </button>
+        )}
+      </div>
+    </Modal>
   )
 }
