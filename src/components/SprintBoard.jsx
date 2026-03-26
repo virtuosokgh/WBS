@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X } from 'lucide-react'
 import { getSprints, getActiveSprint, getNextSprintNumber, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint } from '../lib/sprints'
-import { formatDate, getStatusInfo } from '../utils/helpers'
+import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS } from '../utils/helpers'
 import Modal from './Modal'
 
 const STATUS_BADGE = {
@@ -19,7 +19,7 @@ function SprintStatusBadge({ status }) {
   )
 }
 
-export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange, onRefreshSprints }) {
+export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange, onRefreshSprints, members, onEditTask, onStatusChange }) {
   const [sprints, setSprints] = useState([])
   const [activeSprint, setActiveSprint] = useState(null)
   const [viewingSprint, setViewingSprint] = useState(null)
@@ -92,7 +92,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   // Drag & Drop handlers
   function handleDragOver(e) {
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'copy'
+    e.dataTransfer.dropEffect = 'move'
     setDragOver(true)
   }
 
@@ -274,37 +274,95 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                 </p>
               )}
 
-              {/* Sprint task list (compact) */}
+              {/* Sprint task table (full columns) */}
               {sprintTasks.length > 0 && (
                 <div className="mt-3 border-t border-gray-100 pt-2">
                   <div className="text-xs font-medium text-gray-500 mb-1.5">스프린트 작업 ({sprintTasks.length})</div>
-                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                    {sprintTasks.map(t => {
-                      const st = getStatusInfo(t.status)
-                      return (
-                        <div key={t.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 group/task text-xs">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                            t.status === 'done' ? 'bg-green-500' :
-                            t.status === 'in_progress' ? 'bg-blue-500' :
-                            t.status === 'review' ? 'bg-yellow-500' :
-                            'bg-gray-300'
-                          }`} />
-                          <span className={`flex-1 truncate ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                            {t.name}
-                          </span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${st.color}`}>{st.label}</span>
-                          {canEdit && !isViewingPast && (
-                            <button
-                              onClick={() => handleRemoveTask(t.id)}
-                              className="opacity-0 group-hover/task:opacity-100 p-0.5 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-all"
-                              title="스프린트에서 제거"
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs" style={{ minWidth: '700px' }}>
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400">작업명</th>
+                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 90 }}>담당자</th>
+                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 80 }}>상태</th>
+                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 60 }}>우선순위</th>
+                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 80 }}>시작일</th>
+                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 80 }}>종료일</th>
+                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 50 }}>D-Day</th>
+                          {canEdit && !isViewingPast && <th className="py-1.5 px-2" style={{ width: 30 }}></th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sprintTasks.map(t => {
+                          const st = getStatusInfo(t.status)
+                          const pr = getPriorityInfo(t.priority)
+                          const assignee = members ? members.find(m => m.id === t.assignee_id) : null
+                          const dday = getDday(t.end_date)
+                          const isOverdue = t.end_date && new Date(t.end_date) < new Date() && t.status !== 'done'
+                          return (
+                            <tr
+                              key={t.id}
+                              className="border-b border-gray-50 hover:bg-gray-50 group/task cursor-pointer"
+                              onClick={() => onEditTask?.(t)}
                             >
-                              <X size={12} />
-                            </button>
-                          )}
-                        </div>
-                      )
-                    })}
+                              <td className="py-1.5 px-2">
+                                <span className={`font-medium truncate block max-w-[250px] ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-700 hover:text-indigo-600'}`}>
+                                  {t.name}
+                                </span>
+                              </td>
+                              <td className="py-1.5 px-2 whitespace-nowrap">
+                                {assignee ? (
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                                      {assignee.name[0]}
+                                    </div>
+                                    <span className="text-gray-700 truncate">{assignee.name}</span>
+                                  </div>
+                                ) : <span className="text-gray-300">-</span>}
+                              </td>
+                              <td className="py-1.5 px-2 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                                <select
+                                  value={t.status || 'todo'}
+                                  onChange={e => onStatusChange?.(t.id, e.target.value)}
+                                  disabled={!onStatusChange || isViewingPast}
+                                  className={`text-xs px-1.5 py-0.5 rounded-full font-medium border-0 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${st.color} ${onStatusChange && !isViewingPast ? 'cursor-pointer' : 'cursor-default opacity-80'}`}
+                                >
+                                  {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                </select>
+                              </td>
+                              <td className="py-1.5 px-2 whitespace-nowrap">
+                                <span className={`font-medium ${pr.color}`}>{pr.label}</span>
+                              </td>
+                              <td className="py-1.5 px-2 text-gray-500 whitespace-nowrap">{formatDate(t.start_date)}</td>
+                              <td className="py-1.5 px-2 whitespace-nowrap">
+                                <span className={isOverdue ? 'text-red-500 font-medium' : 'text-gray-500'}>{formatDate(t.end_date)}</span>
+                              </td>
+                              <td className="py-1.5 px-2">
+                                {dday && t.status !== 'done' && (
+                                  <span className={`font-semibold ${
+                                    dday === 'D-Day' ? 'text-red-600' :
+                                    dday.startsWith('D+') ? 'text-red-400' :
+                                    parseInt(dday.replace('D-','')) <= 3 ? 'text-orange-500' : 'text-gray-500'
+                                  }`}>{dday}</span>
+                                )}
+                                {t.status === 'done' && <span className="text-green-500">✓</span>}
+                              </td>
+                              {canEdit && !isViewingPast && (
+                                <td className="py-1.5 px-2" onClick={e => e.stopPropagation()}>
+                                  <button
+                                    onClick={() => handleRemoveTask(t.id)}
+                                    className="opacity-0 group-hover/task:opacity-100 p-0.5 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-all"
+                                    title="스프린트에서 제거"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
@@ -347,7 +405,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   )
 }
 
-/* ── Sprint Creation Modal ── */
+/* -- Sprint Creation Modal -- */
 function SprintCreateModal({ projectId, onClose, onCreate }) {
   const nextNumber = getNextSprintNumber(projectId)
   const [form, setForm] = useState({
@@ -426,7 +484,7 @@ function SprintCreateModal({ projectId, onClose, onCreate }) {
   )
 }
 
-/* ── Sprint Complete Confirmation Modal ── */
+/* -- Sprint Complete Confirmation Modal -- */
 function SprintCompleteModal({ sprint, tasks, onClose, onConfirm }) {
   const sprintTasks = tasks.filter(t => sprint.taskIds.includes(t.id))
   const doneTasks = sprintTasks.filter(t => t.status === 'done')

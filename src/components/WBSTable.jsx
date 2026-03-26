@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { getTasks, createTask, updateTask, deleteTask, updateTaskStatus, getProjectParticipants } from '../lib/db'
 import { STATUS_OPTIONS, ROLE_COLORS, getStatusInfo, getPriorityInfo, formatDate, getDday } from '../utils/helpers'
 import { getActiveSprint, addTaskToSprint, removeTaskFromSprint } from '../lib/sprints'
@@ -22,6 +22,10 @@ export default function WBSTable({ projectId, canEdit = true }) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [viewingSprint, setViewingSprint] = useState(null)
+
+  // Filter state
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterAssignee, setFilterAssignee] = useState('')
 
   const handleSprintChange = useCallback((sprint) => {
     setViewingSprint(sprint)
@@ -105,10 +109,32 @@ export default function WBSTable({ projectId, canEdit = true }) {
     setTasks(t => t.map(x => x.id === id ? { ...x, status } : x))
   }
 
-  // Filter tasks by viewed sprint (if viewing a specific sprint)
-  const displayTasks = viewingSprint
-    ? tasks.filter(t => viewingSprint.taskIds.includes(t.id))
-    : tasks
+  // Determine active sprint taskIds for filtering
+  const activeSprintTaskIds = viewingSprint && viewingSprint.status === 'active'
+    ? new Set(viewingSprint.taskIds)
+    : new Set()
+
+  const isViewingPastSprint = viewingSprint && viewingSprint.status === 'completed'
+
+  // For past sprint view: show only sprint tasks. For normal view: show tasks NOT in active sprint.
+  let displayTasks
+  if (isViewingPastSprint) {
+    displayTasks = tasks.filter(t => viewingSprint.taskIds.includes(t.id))
+  } else {
+    displayTasks = tasks.filter(t => !activeSprintTaskIds.has(t.id))
+  }
+
+  // Apply filters
+  if (filterStatus) {
+    displayTasks = displayTasks.filter(t => t.status === filterStatus)
+  }
+  if (filterAssignee) {
+    if (filterAssignee === '__unassigned__') {
+      displayTasks = displayTasks.filter(t => !t.assignee_id)
+    } else {
+      displayTasks = displayTasks.filter(t => t.assignee_id === filterAssignee)
+    }
+  }
 
   const rootTasks = displayTasks.filter(t => !t.parent_id)
   const childMap = {}
@@ -119,13 +145,13 @@ export default function WBSTable({ projectId, canEdit = true }) {
     }
   })
 
+  const activeFilterCount = [filterStatus, filterAssignee].filter(Boolean).length
+
   if (loading) return (
     <div className="flex items-center justify-center py-20">
       <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
-
-  const isViewingPastSprint = viewingSprint && viewingSprint.status === 'completed'
 
   return (
     <div>
@@ -134,9 +160,12 @@ export default function WBSTable({ projectId, canEdit = true }) {
         canEdit={canEdit}
         tasks={tasks}
         onSprintChange={handleSprintChange}
+        members={members}
+        onEditTask={canEdit && !isViewingPastSprint ? openEdit : undefined}
+        onStatusChange={canEdit && !isViewingPastSprint ? handleStatusChange : undefined}
       />
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-gray-900">
           작업 목록 ({displayTasks.length}개)
           {isViewingPastSprint && (
@@ -154,13 +183,72 @@ export default function WBSTable({ projectId, canEdit = true }) {
         )}
       </div>
 
+      {/* Filters */}
+      <div className="flex items-center gap-2 flex-wrap mb-3">
+        <div className="relative">
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className={`pl-3 pr-7 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 appearance-none cursor-pointer bg-white ${
+              filterStatus ? 'border-indigo-400 text-indigo-700 bg-indigo-50' : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            <option value="">상태: 전체</option>
+            {STATUS_OPTIONS.map(s => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+
+        <div className="relative">
+          <select
+            value={filterAssignee}
+            onChange={e => setFilterAssignee(e.target.value)}
+            className={`pl-3 pr-7 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 appearance-none cursor-pointer bg-white ${
+              filterAssignee ? 'border-indigo-400 text-indigo-700 bg-indigo-50' : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            <option value="">담당자: 전체</option>
+            <option value="__unassigned__">미배정</option>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{m.name}{m.role ? ` (${m.role})` : ''}</option>
+            ))}
+          </select>
+          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+
+        {activeFilterCount > 0 && (
+          <button
+            onClick={() => { setFilterStatus(''); setFilterAssignee('') }}
+            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 border border-gray-200"
+          >
+            <X size={11} />
+            초기화
+            <span className="bg-indigo-100 text-indigo-700 font-semibold rounded-full px-1.5 py-0.5 text-xs leading-none">
+              {activeFilterCount}
+            </span>
+          </button>
+        )}
+      </div>
+
       {displayTasks.length === 0 ? (
         <div className="text-center py-16 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
           <Plus size={32} className="mx-auto mb-2 opacity-30" />
-          <p className="text-sm">{isViewingPastSprint ? '이 스프린트에 작업이 없습니다' : '작업이 없습니다'}</p>
-          {canEdit && !isViewingPastSprint && (
+          <p className="text-sm">
+            {isViewingPastSprint ? '이 스프린트에 작업이 없습니다' :
+             activeFilterCount > 0 ? '조건에 맞는 작업이 없습니다' :
+             activeSprintTaskIds.size > 0 ? '스프린트에 포함되지 않은 작업이 없습니다' :
+             '작업이 없습니다'}
+          </p>
+          {canEdit && !isViewingPastSprint && activeFilterCount === 0 && (
             <button onClick={() => openCreate(null)} className="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
               첫 번째 작업 추가하기
+            </button>
+          )}
+          {activeFilterCount > 0 && (
+            <button onClick={() => { setFilterStatus(''); setFilterAssignee('') }} className="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+              필터 초기화
             </button>
           )}
         </div>
@@ -245,7 +333,7 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
         draggable
         onDragStart={e => {
           e.dataTransfer.setData('text/task-id', task.id)
-          e.dataTransfer.effectAllowed = 'copy'
+          e.dataTransfer.effectAllowed = 'move'
         }}
       >
         <td className="py-2 px-3 text-xs text-gray-400">{depth === 0 ? index : ''}</td>

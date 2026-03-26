@@ -11,7 +11,7 @@ import FlowchartView from '../storyboard/FlowchartView'
 import Footer from './Footer'
 
 const TABS = [
-  { id: 'wbs', label: 'WBS', icon: List },
+  { id: 'wbs', label: '보드', icon: List },
   { id: 'gantt', label: '간트차트', icon: BarChart2 },
   {
     id: 'planning',
