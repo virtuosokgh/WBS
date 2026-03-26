@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Search, X, ChevronDown, ExternalLink, Package, Monitor, Upload } from 'lucide-react'
 import { getTasks, getProjectParticipants, updateTaskLinks } from '../lib/db'
 import { getStatusInfo, ROLE_COLORS, formatDate, STATUS_OPTIONS } from '../utils/helpers'
+import { getSprints } from '../lib/sprints'
 import Modal from './Modal'
 
 const DAY_WIDTH = 28
@@ -63,13 +64,29 @@ export default function GanttView({ projectId, onGoToScreen }) {
 
   const activeFilterCount = [searchText, filterAssignee, filterStatus].filter(Boolean).length
 
+  // Load sprints
+  const sprints = useMemo(() => getSprints(projectId), [projectId, tasks])
+
   const { minDate, days } = useMemo(() => {
-    if (filteredTasks.length === 0) return { minDate: null, days: [] }
-    const dates = filteredTasks.flatMap(t => [new Date(t.start_date), new Date(t.end_date)])
-    const min = new Date(Math.min(...dates))
-    const max = new Date(Math.max(...dates))
+    // Always show today - 3 days to today + 30 days
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    const min = new Date(now)
     min.setDate(min.getDate() - 3)
-    max.setDate(max.getDate() + 3)
+
+    // Extend to cover all tasks or at least 30 days from today
+    let max = new Date(now)
+    max.setDate(max.getDate() + 30)
+
+    // Also include any task dates that go beyond
+    if (filteredTasks.length > 0) {
+      const taskDates = filteredTasks.flatMap(t => [new Date(t.start_date), new Date(t.end_date)])
+      const taskMin = new Date(Math.min(...taskDates))
+      const taskMax = new Date(Math.max(...taskDates))
+      if (taskMin < min) min.setTime(taskMin.getTime() - 3 * 86400000)
+      if (taskMax > max) max.setTime(taskMax.getTime() + 3 * 86400000)
+    }
+
     const dayList = []
     const cursor = new Date(min)
     while (cursor <= max) {
@@ -340,6 +357,35 @@ export default function GanttView({ projectId, onGoToScreen }) {
                   )
                 })}
               </div>
+
+              {/* 스프린트 기간 바 */}
+              {sprints.length > 0 && minDate && (
+                <div className="relative border-b border-gray-200 bg-gray-50/50" style={{ height: 24 }}>
+                  {sprints.map(sprint => {
+                    const sStart = new Date(sprint.startDate)
+                    const sEnd = new Date(sprint.endDate)
+                    sStart.setHours(0,0,0,0)
+                    sEnd.setHours(0,0,0,0)
+                    const sLeft = Math.round((sStart - minDate) / 86400000) * DAY_WIDTH
+                    const sWidth = Math.max((Math.round((sEnd - sStart) / 86400000) + 1) * DAY_WIDTH, DAY_WIDTH)
+                    const isActive = sprint.status === 'active'
+                    return (
+                      <div
+                        key={sprint.id}
+                        className={`absolute top-1 rounded-md flex items-center px-2 text-xs font-medium ${
+                          isActive
+                            ? 'bg-indigo-100 border border-indigo-300 text-indigo-700'
+                            : 'bg-gray-100 border border-gray-300 text-gray-500'
+                        }`}
+                        style={{ left: sLeft, width: sWidth, height: 20 }}
+                        title={`${sprint.name}: ${formatDate(sprint.startDate)} ~ ${formatDate(sprint.endDate)}`}
+                      >
+                        <span className="truncate">{sprint.name}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
 
               {/* 행 */}
               <div className="relative">
