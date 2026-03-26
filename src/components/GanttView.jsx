@@ -228,7 +228,12 @@ export default function GanttView({ projectId, onGoToScreen }) {
               {/* 헤더 */}
               <div className="h-12 border-b border-gray-200 flex items-end px-3 pb-1 bg-gray-50">
                 <span className="text-xs font-semibold text-gray-500 flex-1">작업명</span>
-                <span className="text-xs font-semibold text-gray-500 w-14 text-right">상태</span>
+                <div className="flex items-center flex-shrink-0" style={{ width: 170 }}>
+                  <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 46 }}>Jira</span>
+                  <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 52 }}>산출물</span>
+                  <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 42 }}>기획</span>
+                  <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 42 }}>상태</span>
+                </div>
               </div>
 
               {/* 스프린트 라벨 행 (왼쪽 정렬용) */}
@@ -261,15 +266,16 @@ export default function GanttView({ projectId, onGoToScreen }) {
                       )}
                     </div>
 
-                    {/* 액션 버튼 3개 - 라벨 포함 */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* 액션 버튼 3개 + 상태 - 고정 너비 */}
+                    <div className="flex items-center flex-shrink-0" style={{ width: 170 }}>
                       <button
                         onClick={() => openModal('jira', task)}
-                        className={`flex items-center gap-0.5 px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
+                        className={`flex items-center justify-center gap-0.5 py-1 rounded text-[10px] font-medium transition-colors ${
                           task.jira_url
                             ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
                             : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                         }`}
+                        style={{ width: 46 }}
                       >
                         <ExternalLink size={11} />
                         <span>Jira</span>
@@ -277,11 +283,12 @@ export default function GanttView({ projectId, onGoToScreen }) {
 
                       <button
                         onClick={() => openModal('deliverable', task)}
-                        className={`flex items-center gap-0.5 px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
+                        className={`flex items-center justify-center gap-0.5 py-1 rounded text-[10px] font-medium transition-colors ${
                           hasDeliverable
                             ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
                             : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                         }`}
+                        style={{ width: 52 }}
                       >
                         <Package size={11} />
                         <span>산출물</span>
@@ -289,21 +296,22 @@ export default function GanttView({ projectId, onGoToScreen }) {
 
                       <button
                         onClick={() => openModal('screen', task)}
-                        className={`flex items-center gap-0.5 px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
+                        className={`flex items-center justify-center gap-0.5 py-1 rounded text-[10px] font-medium transition-colors ${
                           task.screen_ref
                             ? 'text-violet-600 bg-violet-50 hover:bg-violet-100'
                             : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                         }`}
+                        style={{ width: 42 }}
                       >
                         <Monitor size={11} />
                         <span>기획</span>
                       </button>
-                    </div>
 
-                    {/* 상태 배지 */}
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${status.color}`}>
-                      {status.label}
-                    </span>
+                      {/* 상태 배지 */}
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium text-center ${status.color}`} style={{ width: 42 }}>
+                        {status.label}
+                      </span>
+                    </div>
                   </div>
                 )
               })}
