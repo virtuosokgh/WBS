@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
-import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid } from 'lucide-react'
-import { getSprints, getActiveSprint, getNextSprintNumber, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint } from '../lib/sprints'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid, FileText } from 'lucide-react'
+import { getSprints, getActiveSprint, getNextSprintNumber, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription } from '../lib/sprints'
 import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS } from '../utils/helpers'
 import Modal from './Modal'
 
@@ -29,6 +29,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   const [showSelector, setShowSelector] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [viewMode, setViewMode] = useState('list') // 'list' | 'board'
+  const [showDescModal, setShowDescModal] = useState(false)
 
   const refresh = useCallback(() => {
     const all = getSprints(projectId)
@@ -203,6 +204,20 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                     )}
                   </div>
 
+                  {/* 스프린트 설명 버튼 */}
+                  <button
+                    onClick={() => setShowDescModal(true)}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                      currentSprint.description
+                        ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                    }`}
+                    title={currentSprint.description || '스프린트 설명 추가'}
+                  >
+                    <FileText size={12} />
+                    설명
+                  </button>
+
                   <SprintStatusBadge status={currentSprint.status} />
 
                   <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -291,10 +306,15 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                 </div>
               )}
 
-              {/* Sprint description */}
+              {/* Sprint description (brief preview) */}
               {currentSprint.description && (
-                <p className="text-xs text-gray-400 mt-2 truncate" title={currentSprint.description}>
-                  {currentSprint.description}
+                <p
+                  className="text-xs text-gray-400 mt-2 truncate cursor-pointer hover:text-gray-600"
+                  title="클릭하여 설명 보기/편집"
+                  onClick={() => setShowDescModal(true)}
+                >
+                  {currentSprint.description.replace(/<[^>]*>/g, '').slice(0, 100)}
+                  {currentSprint.description.replace(/<[^>]*>/g, '').length > 100 ? '...' : ''}
                 </p>
               )}
 
@@ -547,6 +567,19 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
           onConfirm={handleComplete}
         />
       )}
+
+      {showDescModal && currentSprint && (
+        <SprintDescriptionModal
+          sprint={currentSprint}
+          projectId={projectId}
+          onClose={() => setShowDescModal(false)}
+          onSave={(desc) => {
+            updateSprintDescription(projectId, currentSprint.id, desc)
+            refresh()
+            setShowDescModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -657,6 +690,53 @@ function SprintCompleteModal({ sprint, tasks, onClose, onConfirm }) {
             미완료 작업은 다음 스프린트 생성 시 자동으로 포함됩니다.
           </div>
         )}
+      </div>
+    </Modal>
+  )
+}
+
+/* -- Sprint Description Modal -- */
+function SprintDescriptionModal({ sprint, onClose, onSave }) {
+  const editorRef = useRef(null)
+  const [desc, setDesc] = useState(sprint.description || '')
+
+  function execCmd(cmd, val = null) {
+    document.execCommand(cmd, false, val)
+    editorRef.current?.focus()
+    setDesc(editorRef.current?.innerHTML || '')
+  }
+
+  return (
+    <Modal title={`${sprint.name} - 설명`} onClose={onClose} onConfirm={() => onSave(desc)} confirmLabel="저장" size="md">
+      <div className="space-y-3">
+        {/* 툴바 */}
+        <div className="flex items-center gap-0.5 p-1.5 border border-b-0 border-gray-300 rounded-t-lg bg-gray-50">
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('bold') }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="굵게">B</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('italic') }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs italic" title="기울임">I</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('underline') }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs underline" title="밑줄">U</button>
+          <div className="w-px h-4 bg-gray-300 mx-1" />
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('insertUnorderedList') }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="글머리 기호">•</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('insertOrderedList') }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="번호 매기기">1.</button>
+          <div className="w-px h-4 bg-gray-300 mx-1" />
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', 'h3') }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="제목">H</button>
+        </div>
+        <div
+          ref={editorRef}
+          className="w-full border border-gray-300 rounded-b-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[200px] max-h-[400px] overflow-y-auto"
+          contentEditable
+          suppressContentEditableWarning
+          onInput={() => setDesc(editorRef.current?.innerHTML || '')}
+          dangerouslySetInnerHTML={{ __html: desc }}
+          data-placeholder="스프린트 목표, 주요 작업 내용, 회의 내용 등을 작성하세요."
+          style={{ whiteSpace: 'pre-wrap' }}
+        />
+        <p className="text-xs text-gray-400">스프린트의 목표, 범위, 주요 이슈 등을 기록할 수 있습니다.</p>
       </div>
     </Modal>
   )

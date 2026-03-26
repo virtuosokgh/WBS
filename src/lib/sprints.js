@@ -81,6 +81,14 @@ export function removeTaskFromSprint(projectId, sprintId, taskId) {
   saveSprints(projectId, sprints)
 }
 
+export function updateSprintDescription(projectId, sprintId, description) {
+  const sprints = getSprints(projectId)
+  const idx = sprints.findIndex(s => s.id === sprintId)
+  if (idx === -1) return
+  sprints[idx].description = description
+  saveSprints(projectId, sprints)
+}
+
 export function updateSprintTaskIds(projectId, sprintId, taskIds) {
   const sprints = getSprints(projectId)
   const idx = sprints.findIndex(s => s.id === sprintId)
