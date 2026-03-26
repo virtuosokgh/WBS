@@ -10,15 +10,25 @@ function RichEditor({ value, onChange }) {
   const editorRef = useRef(null)
   const fileInputRef = useRef(null)
   const [uploading, setUploading] = useState(false)
+  const initializedRef = useRef(false)
+  const composingRef = useRef(false)
+
+  // Set initial content only once
+  useEffect(() => {
+    if (editorRef.current && !initializedRef.current) {
+      editorRef.current.innerHTML = value || ''
+      initializedRef.current = true
+    }
+  }, [value])
 
   const execCmd = useCallback((cmd, val = null) => {
     document.execCommand(cmd, false, val)
     editorRef.current?.focus()
-    // sync
     onChange(editorRef.current?.innerHTML || '')
   }, [onChange])
 
   const handleInput = useCallback(() => {
+    if (composingRef.current) return
     onChange(editorRef.current?.innerHTML || '')
   }, [onChange])
 
@@ -131,10 +141,11 @@ function RichEditor({ value, onChange }) {
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
+        onCompositionStart={() => { composingRef.current = true }}
+        onCompositionEnd={() => { composingRef.current = false; onChange(editorRef.current?.innerHTML || '') }}
         onPaste={handlePaste}
         onDrop={handleDrop}
         onDragOver={e => e.preventDefault()}
-        dangerouslySetInnerHTML={{ __html: value }}
         data-placeholder="작업에 대한 상세 설명을 입력하세요. 이미지를 붙여넣거나 드래그할 수 있습니다."
       />
       <input
@@ -200,6 +211,7 @@ export default function TaskModal({ task, members, onClose, onSave, saving = fal
     await deleteTaskComment(commentId)
     setComments(prev => prev.filter(c => c.id !== commentId))
   }
+  const endDateRef = useRef(null)
   const [errors, setErrors] = useState({})
 
   function clearError(field) {
@@ -363,7 +375,7 @@ export default function TaskModal({ task, members, onClose, onSave, saving = fal
             <input
               type="date"
               value={form.startDate}
-              onChange={e => { setForm(f => ({ ...f, startDate: e.target.value })); clearError('startDate') }}
+              onChange={e => { setForm(f => ({ ...f, startDate: e.target.value })); clearError('startDate'); setTimeout(() => endDateRef.current?.showPicker?.(), 100) }}
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 transition-colors ${
                 errors.startDate ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'
               }`}
@@ -375,6 +387,7 @@ export default function TaskModal({ task, members, onClose, onSave, saving = fal
               종료일 <span className="text-red-500">*</span>
             </label>
             <input
+              ref={endDateRef}
               type="date"
               value={form.endDate}
               onChange={e => { setForm(f => ({ ...f, endDate: e.target.value })); clearError('endDate') }}

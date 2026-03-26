@@ -256,7 +256,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                       title="보드형"
                     >
                       <LayoutGrid size={12} />
-                      보드
+                      스프린트 보드
                     </button>
                   </div>
                   {isViewingPast && activeSprint && (

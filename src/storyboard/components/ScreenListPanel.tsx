@@ -163,7 +163,7 @@ export default function ScreenListPanel({
   const defaultPage = activeScreen?.frame.pageId || pages[0]?.id || '__default__'
   const [activePageId, setActivePageId] = useState(defaultPage)
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
-  const [viewMode, setViewMode] = useState<'tree' | 'list'>(figmaTree && figmaTree.length > 0 ? 'tree' : 'list')
+  const [viewMode, setViewMode] = useState<'tree' | 'list'>('tree')
 
   // Follow active screen's page
   useEffect(() => {
@@ -286,8 +286,8 @@ export default function ScreenListPanel({
   // ── List View (original) ──
   const renderListView = () => (
     <>
-      {/* Page tabs */}
-      {pages.length > 1 && (
+      {/* Page tabs (only in explicit list mode) */}
+      {viewMode === 'list' && pages.length > 1 && (
         <div className="slp-pages">
           {pages.map(page => (
             <button
@@ -363,9 +363,7 @@ export default function ScreenListPanel({
     <aside className="screen-list-panel">
       {/* Header */}
       <div className="slp-header">
-        <span className="slp-title">
-          {hasTree ? '레이어' : (pages.length === 1 ? (pages[0]?.name || '레이어') : pages.find(p => p.id === activePageId)?.name || '레이어')}
-        </span>
+        <span className="slp-title">레이어</span>
         <div className="slp-header-actions">
           {hasTree && (
             <div className="slp-view-toggle">
