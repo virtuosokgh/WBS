@@ -68,24 +68,13 @@ export default function GanttView({ projectId, onGoToScreen }) {
   const sprints = useMemo(() => getSprints(projectId), [projectId, tasks])
 
   const { minDate, days } = useMemo(() => {
-    // Always show today - 3 days to today + 30 days
+    // Fixed 30-day range: today - 15 days to today + 15 days
     const now = new Date()
     now.setHours(0, 0, 0, 0)
     const min = new Date(now)
-    min.setDate(min.getDate() - 3)
-
-    // Extend to cover all tasks or at least 30 days from today
-    let max = new Date(now)
-    max.setDate(max.getDate() + 30)
-
-    // Also include any task dates that go beyond
-    if (filteredTasks.length > 0) {
-      const taskDates = filteredTasks.flatMap(t => [new Date(t.start_date), new Date(t.end_date)])
-      const taskMin = new Date(Math.min(...taskDates))
-      const taskMax = new Date(Math.max(...taskDates))
-      if (taskMin < min) min.setTime(taskMin.getTime() - 3 * 86400000)
-      if (taskMax > max) max.setTime(taskMax.getTime() + 3 * 86400000)
-    }
+    min.setDate(min.getDate() - 15)
+    const max = new Date(now)
+    max.setDate(max.getDate() + 15)
 
     const dayList = []
     const cursor = new Date(min)
@@ -370,11 +359,14 @@ export default function GanttView({ projectId, onGoToScreen }) {
                     sStart.setHours(0,0,0,0)
                     sEnd.setHours(0,0,0,0)
                     const sLeft = Math.round((sStart - minDate) / 86400000) * DAY_WIDTH
+                    const sWidth = Math.max((Math.round((sEnd - sStart) / 86400000) + 1) * DAY_WIDTH, DAY_WIDTH)
                     const isActive = sprint.status === 'active'
                     return (
-                      <div key={sprint.id + '-label'} className="absolute top-0 bottom-0 flex items-center" style={{ left: sLeft + 4, zIndex: 5 }}>
+                      <div key={sprint.id + '-label'} className={`absolute top-0 bottom-0 flex items-center justify-center overflow-hidden ${
+                        isActive ? 'bg-indigo-100/80' : 'bg-gray-100/60'
+                      }`} style={{ left: sLeft, width: sWidth, zIndex: 5 }}>
                         <div className={`px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
-                          isActive ? 'bg-indigo-500 text-white' : 'bg-gray-400 text-white'
+                          isActive ? 'text-indigo-700' : 'text-gray-500'
                         }`}>
                           {sprint.name} ({formatDate(sprint.startDate)} ~ {formatDate(sprint.endDate)})
                         </div>
