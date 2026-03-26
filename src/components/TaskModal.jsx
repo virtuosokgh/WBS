@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Modal from './Modal'
-import { STATUS_OPTIONS, PRIORITY_OPTIONS, ROLE_COLORS, formatDate } from '../utils/helpers'
+import { STATUS_OPTIONS, SPRINT_STATUS_OPTIONS, PRIORITY_OPTIONS, ROLE_COLORS, formatDate } from '../utils/helpers'
 import { supabase } from '../lib/supabase'
 import { getTaskComments, addTaskComment, deleteTaskComment } from '../lib/db'
 import { notifyComment } from '../lib/slack'
@@ -153,7 +153,7 @@ export default function TaskModal({ task, members, onClose, onSave, saving = fal
     name: task?.name || '',
     description: task?.description || '',
     assigneeId: task?.assigneeId || '',
-    status: task?.status || 'todo',
+    status: task?.status || 'backlog',
     priority: task?.priority || 'medium',
     startDate: task?.startDate || '',
     endDate: task?.endDate || '',
@@ -266,8 +266,13 @@ export default function TaskModal({ task, members, onClose, onSave, saving = fal
             <label className="block text-sm font-medium text-gray-700 mb-1">
               상태 <span className="text-red-500">*</span>
             </label>
+            {!task ? (
+              <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+                작업 생성 시 기본 "대기" 상태로 등록됩니다
+              </div>
+            ) : (
             <div className="grid grid-cols-2 gap-1.5">
-              {STATUS_OPTIONS.map(s => (
+              {SPRINT_STATUS_OPTIONS.map(s => (
                 <button
                   key={s.value}
                   type="button"
@@ -282,6 +287,7 @@ export default function TaskModal({ task, members, onClose, onSave, saving = fal
                 </button>
               ))}
             </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

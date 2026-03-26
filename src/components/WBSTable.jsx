@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Trash2, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { getTasks, createTask, updateTask, deleteTask, updateTaskStatus, getProjectParticipants } from '../lib/db'
-import { STATUS_OPTIONS, ROLE_COLORS, getStatusInfo, getPriorityInfo, formatDate, getDday } from '../utils/helpers'
+import { STATUS_OPTIONS, SPRINT_STATUS_OPTIONS, BACKLOG_STATUS, ROLE_COLORS, getStatusInfo, getPriorityInfo, formatDate, getDday } from '../utils/helpers'
 import { getActiveSprint, addTaskToSprint, removeTaskFromSprint } from '../lib/sprints'
 import TaskModal from './TaskModal'
 import SprintBoard from './SprintBoard'
@@ -288,6 +288,7 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
                   onDelete={canEdit && !isViewingPastSprint ? handleDelete : null}
                   onStatusChange={canEdit && !isViewingPastSprint ? handleStatusChange : null}
                   onAddChild={canEdit && !isViewingPastSprint ? openCreate : null}
+                  isBacklog={!isViewingPastSprint && !activeSprintTaskIds.has(task.id)}
                 />
               ))}
             </tbody>
@@ -322,7 +323,7 @@ function getAllDescendants(tasks, id) {
   return result
 }
 
-function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, onEdit, onDelete, onStatusChange, onAddChild }) {
+function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, onEdit, onDelete, onStatusChange, onAddChild, isBacklog }) {
   const children = childMap[task.id] || []
   const hasChildren = children.length > 0
   const isCollapsed = collapsed[task.id]
@@ -369,14 +370,20 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
           ) : <span className="text-xs text-gray-300">-</span>}
         </td>
         <td className="py-2 px-3 whitespace-nowrap">
-          <select
-            value={task.status || 'todo'}
-            onChange={e => onStatusChange?.(task.id, e.target.value)}
-            disabled={!onStatusChange}
-            className={`text-xs px-2 py-1 rounded-full font-medium border-0 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${status.color} ${onStatusChange ? 'cursor-pointer' : 'cursor-default opacity-80'}`}
-          >
-            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
+          {isBacklog ? (
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${BACKLOG_STATUS.color}`}>
+              {BACKLOG_STATUS.label}
+            </span>
+          ) : (
+            <select
+              value={task.status || 'todo'}
+              onChange={e => onStatusChange?.(task.id, e.target.value)}
+              disabled={!onStatusChange}
+              className={`text-xs px-2 py-1 rounded-full font-medium border-0 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${status.color} ${onStatusChange ? 'cursor-pointer' : 'cursor-default opacity-80'}`}
+            >
+              {SPRINT_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          )}
         </td>
         <td className="py-2 px-3 whitespace-nowrap">
           <span className={`text-xs font-medium ${priority.color}`}>{priority.label}</span>
@@ -426,6 +433,7 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
           onDelete={onDelete}
           onStatusChange={onStatusChange}
           onAddChild={onAddChild}
+          isBacklog={isBacklog}
         />
       ))}
     </>

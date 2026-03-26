@@ -130,9 +130,12 @@ export default function GanttView({ projectId, onGoToScreen }) {
   if (curMonth) months.push({ key: curMonth, count: curCount })
 
   const STATUS_BAR_COLORS = {
-    todo: 'bg-gray-300',
+    backlog: 'bg-gray-300',
+    todo: 'bg-gray-400',
     in_progress: 'bg-blue-400',
+    test_request: 'bg-orange-400',
     review: 'bg-yellow-400',
+    done_no_test: 'bg-emerald-400',
     done: 'bg-green-400',
   }
 

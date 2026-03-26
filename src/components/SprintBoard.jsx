@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid, FileText } from 'lucide-react'
 import { getSprints, getActiveSprint, getNextSprintNumber, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription } from '../lib/sprints'
-import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS } from '../utils/helpers'
+import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS, SPRINT_STATUS_OPTIONS } from '../utils/helpers'
 import Modal from './Modal'
 
 const STATUS_BADGE = {
@@ -88,6 +88,8 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   function handleRemoveTask(taskId) {
     if (!activeSprint) return
     removeTaskFromSprint(projectId, activeSprint.id, taskId)
+    // 스프린트에서 제거 시 상태를 '대기'(backlog)로 변경
+    onStatusChange?.(taskId, 'backlog')
     refresh()
   }
 
@@ -108,6 +110,8 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
     const taskId = e.dataTransfer.getData('text/task-id')
     if (taskId && activeSprint) {
       addTaskToSprint(projectId, activeSprint.id, taskId)
+      // 스프린트에 추가 시 상태를 '할일'(todo)로 변경
+      onStatusChange?.(taskId, 'todo')
       refresh()
     }
   }
@@ -371,7 +375,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                                   disabled={!onStatusChange || isViewingPast}
                                   className={`text-xs px-1.5 py-0.5 rounded-full font-medium border-0 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${st.color} ${onStatusChange && !isViewingPast ? 'cursor-pointer' : 'cursor-default opacity-80'}`}
                                 >
-                                  {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                  {SPRINT_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                                 </select>
                               </td>
                               <td className="py-1.5 px-2 whitespace-nowrap">
@@ -415,7 +419,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
               {sprintTasks.length > 0 && viewMode === 'board' && (
                 <div className="mt-3 border-t border-gray-100 pt-3">
                   <div className="flex gap-3 overflow-x-auto pb-2" style={{ minHeight: 200 }}>
-                    {STATUS_OPTIONS.map(status => {
+                    {SPRINT_STATUS_OPTIONS.map(status => {
                       const columnTasks = sprintTasks
                         .filter(t => t.status === status.value)
                         .sort((a, b) => {

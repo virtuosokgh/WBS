@@ -14,11 +14,23 @@ export const ROLE_COLORS = {
   QA: 'bg-red-100 text-red-700',
 }
 
-export const STATUS_OPTIONS = [
-  { value: 'todo', label: '대기', color: 'bg-gray-100 text-gray-600' },
+// 백로그 상태 (작업목록 전용)
+export const BACKLOG_STATUS = { value: 'backlog', label: '대기', color: 'bg-gray-100 text-gray-600' }
+
+// 스프린트 상태 (할일 → 진행중 → 테스트요청 → 테스트중 → 테스트없이완료 → 완료)
+export const SPRINT_STATUS_OPTIONS = [
+  { value: 'todo', label: '할일', color: 'bg-gray-100 text-gray-600' },
   { value: 'in_progress', label: '진행중', color: 'bg-blue-100 text-blue-700' },
+  { value: 'test_request', label: '테스트요청', color: 'bg-orange-100 text-orange-700' },
   { value: 'review', label: '테스트중', color: 'bg-yellow-100 text-yellow-700' },
+  { value: 'done_no_test', label: '테스트없이 완료', color: 'bg-emerald-100 text-emerald-600' },
   { value: 'done', label: '완료', color: 'bg-green-100 text-green-700' },
+]
+
+// 전체 상태 (호환용)
+export const STATUS_OPTIONS = [
+  BACKLOG_STATUS,
+  ...SPRINT_STATUS_OPTIONS,
 ]
 
 export const PRIORITY_OPTIONS = [
