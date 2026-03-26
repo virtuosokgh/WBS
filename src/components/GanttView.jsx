@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { Search, X, ChevronDown, ExternalLink, Package, Monitor, Upload } from 'lucide-react'
+import { Search, X, ChevronDown, ExternalLink, Package, Monitor, Upload, FileText, Bold, Italic, Underline, List, ListOrdered, Image } from 'lucide-react'
 import { getTasks, getProjectParticipants, updateTaskLinks } from '../lib/db'
 import { getStatusInfo, ROLE_COLORS, formatDate, STATUS_OPTIONS } from '../utils/helpers'
 import { getSprints } from '../lib/sprints'
@@ -234,9 +234,9 @@ export default function GanttView({ projectId, onGoToScreen }) {
         </div>
       ) : (
         <div className="overflow-x-auto border border-gray-200 rounded-xl" style={{ overflow: 'visible' }}>
-          <div className="flex" style={{ minWidth: `${320 + days.length * DAY_WIDTH}px` }}>
+          <div className="flex" style={{ minWidth: `${420 + days.length * DAY_WIDTH}px` }}>
             {/* Left: 작업명 + 액션 버튼 */}
-            <div className="flex-shrink-0 w-80 border-r border-gray-200">
+            <div className="flex-shrink-0 w-[420px] border-r border-gray-200">
               {/* 헤더 */}
               <div className="h-12 border-b border-gray-200 flex items-end px-3 pb-1 bg-gray-50">
                 <span className="text-xs font-semibold text-gray-500 flex-1">작업명</span>
@@ -253,7 +253,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
               {filteredTasks.map(task => {
                 const assignee = members.find(m => m.id === task.assignee_id)
                 const status = getStatusInfo(task.status)
-                const hasDeliverable = !!(task.deliverable_url || task.deliverable_image)
+                const hasDeliverable = !!(task.deliverable_url || task.deliverable_image || task.deliverable_text)
 
                 return (
                   <div
@@ -273,45 +273,42 @@ export default function GanttView({ projectId, onGoToScreen }) {
                       )}
                     </div>
 
-                    {/* 액션 버튼 3개 */}
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                      {/* Jira */}
+                    {/* 액션 버튼 3개 - 라벨 포함 */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => openModal('jira', task)}
-                        title={task.jira_url ? 'Jira 티켓' : 'Jira 티켓 링크 추가'}
-                        className={`p-1.5 rounded transition-colors ${
+                        className={`flex items-center gap-0.5 px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
                           task.jira_url
-                            ? 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
-                            : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'
+                            ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                         }`}
                       >
                         <ExternalLink size={11} />
+                        <span>Jira</span>
                       </button>
 
-                      {/* 산출물 */}
                       <button
                         onClick={() => openModal('deliverable', task)}
-                        title={hasDeliverable ? '산출물 보기/수정' : '산출물 추가'}
-                        className={`p-1.5 rounded transition-colors ${
+                        className={`flex items-center gap-0.5 px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
                           hasDeliverable
-                            ? 'text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50'
-                            : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'
+                            ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                         }`}
                       >
                         <Package size={11} />
+                        <span>산출물</span>
                       </button>
 
-                      {/* 화면 */}
                       <button
                         onClick={() => openModal('screen', task)}
-                        title={task.screen_ref ? `화면: ${task.screen_name || task.screen_ref} (클릭 시 이동)` : '스토리보드 화면 연결'}
-                        className={`p-1.5 rounded transition-colors ${
+                        className={`flex items-center gap-0.5 px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
                           task.screen_ref
-                            ? 'text-violet-500 hover:text-violet-700 hover:bg-violet-50'
-                            : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'
+                            ? 'text-violet-600 bg-violet-50 hover:bg-violet-100'
+                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                         }`}
                       >
                         <Monitor size={11} />
+                        <span>기획</span>
                       </button>
                     </div>
 
@@ -431,7 +428,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
                   const { left, width } = getBarStyle(task)
                   const assignee = members.find(m => m.id === task.assignee_id)
                   const barColor = STATUS_BAR_COLORS[task.status] || 'bg-gray-300'
-                  const hasDeliverable = !!(task.deliverable_url || task.deliverable_image)
+                  const hasDeliverable = !!(task.deliverable_url || task.deliverable_image || task.deliverable_text)
                   const showBelow = taskIdx === 0
                   return (
                     <div
@@ -444,11 +441,11 @@ export default function GanttView({ projectId, onGoToScreen }) {
                         style={{ left, width, height: 26, overflow: 'visible' }}
                       >
                         <span className="text-xs text-white font-medium truncate flex-1">{task.name}</span>
-                        {/* 바 위 아이콘 */}
-                        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover/bar:opacity-100 transition-opacity">
-                          {task.jira_url && <ExternalLink size={9} className="text-white" />}
-                          {hasDeliverable && <Package size={9} className="text-white" />}
-                          {task.screen_ref && <Monitor size={9} className="text-white" />}
+                        {/* 바 위 아이콘 - 항상 표시 */}
+                        <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
+                          {task.jira_url && <ExternalLink size={11} className="text-white/80" />}
+                          {hasDeliverable && <Package size={11} className="text-white/80" />}
+                          {task.screen_ref && <Monitor size={11} className="text-white/80" />}
                         </div>
                         {/* 커스텀 툴팁 - 첫 태스크는 아래로, 나머지는 위로 */}
                         <div
@@ -565,15 +562,19 @@ function JiraModal({ task, onClose, onSave }) {
 }
 
 // ──────────────────────────────────────────
-// 산출물 모달
+// 산출물 모달 (URL / 이미지 / 텍스트)
 // ──────────────────────────────────────────
 function DeliverableModal({ task, onClose, onSave }) {
   const hasImage = !!task.deliverable_image
-  const [tab, setTab] = useState(hasImage ? 'image' : 'url')
+  const hasText = !!task.deliverable_text
+  const [tab, setTab] = useState(hasText ? 'text' : hasImage ? 'image' : 'url')
   const [url, setUrl] = useState(task.deliverable_url || '')
   const [image, setImage] = useState(task.deliverable_image || '')
+  const [text, setText] = useState(task.deliverable_text || '')
   const [err, setErr] = useState('')
   const fileRef = useRef(null)
+  const textEditorRef = useRef(null)
+  const textFileRef = useRef(null)
 
   function handleFile(e) {
     const file = e.target.files?.[0]
@@ -584,42 +585,87 @@ function DeliverableModal({ task, onClose, onSave }) {
     reader.readAsDataURL(file)
   }
 
+  function handleTextImage(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { setErr('5MB 이하 이미지만 업로드 가능합니다.'); return }
+    const reader = new FileReader()
+    reader.onload = ev => {
+      document.execCommand('insertImage', false, ev.target.result)
+      textEditorRef.current?.focus()
+      setText(textEditorRef.current?.innerHTML || '')
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  function handleTextPaste(e) {
+    const items = e.clipboardData?.items
+    if (items) {
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault()
+          const file = item.getAsFile()
+          const reader = new FileReader()
+          reader.onload = ev => {
+            document.execCommand('insertImage', false, ev.target.result)
+            setText(textEditorRef.current?.innerHTML || '')
+          }
+          reader.readAsDataURL(file)
+          return
+        }
+      }
+    }
+  }
+
+  function execTextCmd(cmd, val = null) {
+    document.execCommand(cmd, false, val)
+    textEditorRef.current?.focus()
+    setText(textEditorRef.current?.innerHTML || '')
+  }
+
   function handleSave() {
     if (tab === 'url') {
       const trimmed = url.trim()
       if (!trimmed) { setErr('URL을 입력해주세요.'); return }
       try { new URL(trimmed) } catch { setErr('올바른 URL 형식이 아닙니다.'); return }
-      onSave({ deliverable_url: trimmed, deliverable_image: '' })
-    } else {
+      onSave({ deliverable_url: trimmed, deliverable_image: '', deliverable_text: '' })
+    } else if (tab === 'image') {
       if (!image) { setErr('이미지를 선택해주세요.'); return }
-      onSave({ deliverable_url: '', deliverable_image: image })
+      onSave({ deliverable_url: '', deliverable_image: image, deliverable_text: '' })
+    } else {
+      const trimmed = text.replace(/<br\s*\/?>$/i, '').trim()
+      if (!trimmed) { setErr('내용을 입력해주세요.'); return }
+      onSave({ deliverable_url: '', deliverable_image: '', deliverable_text: trimmed })
     }
   }
+
+  const tabs = [
+    { key: 'url', label: 'URL 링크', icon: ExternalLink },
+    { key: 'image', label: '이미지', icon: Image },
+    { key: 'text', label: '텍스트', icon: FileText },
+  ]
 
   return (
     <Modal title="산출물" onClose={onClose} onConfirm={handleSave} confirmLabel="저장" size="md">
       <div className="space-y-4">
         {/* 탭 */}
         <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
-          <button
-            onClick={() => { setTab('url'); setErr('') }}
-            className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              tab === 'url' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            URL 링크
-          </button>
-          <button
-            onClick={() => { setTab('image'); setErr('') }}
-            className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              tab === 'image' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            이미지
-          </button>
+          {tabs.map(t => (
+            <button
+              key={t.key}
+              onClick={() => { setTab(t.key); setErr('') }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                tab === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <t.icon size={13} />
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        {tab === 'url' ? (
+        {tab === 'url' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               산출물 URL <span className="text-red-500">*</span>
@@ -643,7 +689,9 @@ function DeliverableModal({ task, onClose, onSave }) {
               </a>
             )}
           </div>
-        ) : (
+        )}
+
+        {tab === 'image' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               이미지 <span className="text-red-500">*</span>
@@ -672,11 +720,61 @@ function DeliverableModal({ task, onClose, onSave }) {
           </div>
         )}
 
+        {tab === 'text' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              산출물 내용 <span className="text-red-500">*</span>
+            </label>
+            {/* 간이 리치 에디터 툴바 */}
+            <div className="flex items-center gap-0.5 p-1.5 border border-b-0 border-gray-300 rounded-t-lg bg-gray-50">
+              <button type="button" onMouseDown={e => { e.preventDefault(); execTextCmd('bold') }}
+                className="p-1.5 rounded hover:bg-gray-200 text-gray-600" title="굵게">
+                <Bold size={14} />
+              </button>
+              <button type="button" onMouseDown={e => { e.preventDefault(); execTextCmd('italic') }}
+                className="p-1.5 rounded hover:bg-gray-200 text-gray-600" title="기울임">
+                <Italic size={14} />
+              </button>
+              <button type="button" onMouseDown={e => { e.preventDefault(); execTextCmd('underline') }}
+                className="p-1.5 rounded hover:bg-gray-200 text-gray-600" title="밑줄">
+                <Underline size={14} />
+              </button>
+              <div className="w-px h-4 bg-gray-300 mx-1" />
+              <button type="button" onMouseDown={e => { e.preventDefault(); execTextCmd('insertUnorderedList') }}
+                className="p-1.5 rounded hover:bg-gray-200 text-gray-600" title="글머리 기호">
+                <List size={14} />
+              </button>
+              <button type="button" onMouseDown={e => { e.preventDefault(); execTextCmd('insertOrderedList') }}
+                className="p-1.5 rounded hover:bg-gray-200 text-gray-600" title="번호 매기기">
+                <ListOrdered size={14} />
+              </button>
+              <div className="w-px h-4 bg-gray-300 mx-1" />
+              <button type="button" onMouseDown={e => { e.preventDefault(); textFileRef.current?.click() }}
+                className="p-1.5 rounded hover:bg-gray-200 text-gray-600" title="이미지 삽입">
+                <Image size={14} />
+              </button>
+            </div>
+            <div
+              ref={textEditorRef}
+              className="w-full border border-gray-300 rounded-b-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[180px] max-h-[360px] overflow-y-auto"
+              contentEditable
+              suppressContentEditableWarning
+              onInput={() => setText(textEditorRef.current?.innerHTML || '')}
+              onPaste={handleTextPaste}
+              dangerouslySetInnerHTML={{ __html: text }}
+              data-placeholder="산출물에 대한 설명을 입력하세요. 이미지를 붙여넣을 수 있습니다."
+              style={{ whiteSpace: 'pre-wrap' }}
+            />
+            <input ref={textFileRef} type="file" accept="image/*" className="hidden" onChange={handleTextImage} />
+            <p className="mt-1 text-xs text-gray-400">이미지를 복사/붙여넣기하거나 툴바의 이미지 버튼으로 삽입할 수 있습니다.</p>
+          </div>
+        )}
+
         {err && <p className="text-xs text-red-500">⚠ {err}</p>}
 
-        {(task.deliverable_url || task.deliverable_image) && (
+        {(task.deliverable_url || task.deliverable_image || task.deliverable_text) && (
           <button
-            onClick={() => onSave({ deliverable_url: '', deliverable_image: '' })}
+            onClick={() => onSave({ deliverable_url: '', deliverable_image: '', deliverable_text: '' })}
             className="text-xs text-gray-400 hover:text-red-500 transition-colors"
           >
             산출물 제거

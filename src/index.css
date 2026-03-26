@@ -91,10 +91,18 @@
   cursor: text;
 }
 
-.rich-editor-body:empty::before {
+.rich-editor-body:empty::before,
+[contenteditable]:empty::before {
   content: attr(data-placeholder);
   color: #9ca3af;
   pointer-events: none;
+}
+
+/* Deliverable text editor images */
+[contenteditable] img {
+  max-width: 100%;
+  border-radius: 6px;
+  margin: 8px 0;
 }
 
 .rich-editor-body h3 {

@@ -285,6 +285,7 @@ export async function updateTaskLinks(id, updates) {
   if ('jira_url' in updates) row.jira_url = updates.jira_url
   if ('deliverable_url' in updates) row.deliverable_url = updates.deliverable_url
   if ('deliverable_image' in updates) row.deliverable_image = updates.deliverable_image
+  if ('deliverable_text' in updates) row.deliverable_text = updates.deliverable_text
   if ('screen_ref' in updates) row.screen_ref = updates.screen_ref
   if ('screen_name' in updates) row.screen_name = updates.screen_name
   const { error } = await supabase.from('tasks').update(row).eq('id', id)
