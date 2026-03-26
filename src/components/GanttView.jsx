@@ -145,7 +145,6 @@ export default function GanttView({ projectId, onGoToScreen }) {
     in_progress: 'bg-blue-400',
     review: 'bg-yellow-400',
     done: 'bg-green-400',
-    blocked: 'bg-red-400',
   }
 
   function clearFilters() {

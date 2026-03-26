@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid } from 'lucide-react'
 import { getSprints, getActiveSprint, getNextSprintNumber, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint } from '../lib/sprints'
 import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS } from '../utils/helpers'
 import Modal from './Modal'
@@ -28,6 +28,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
   const [showSelector, setShowSelector] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [viewMode, setViewMode] = useState('list') // 'list' | 'board'
 
   const refresh = useCallback(() => {
     const all = getSprints(projectId)
@@ -214,8 +215,31 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                   </span>
                 </div>
 
-                {/* Actions */}
+                {/* View toggle + Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* 목록형/보드형 토글 */}
+                  <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`flex items-center gap-1 px-2 py-1 text-xs font-medium transition-colors ${
+                        viewMode === 'list' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                      title="목록형"
+                    >
+                      <List size={12} />
+                      목록
+                    </button>
+                    <button
+                      onClick={() => setViewMode('board')}
+                      className={`flex items-center gap-1 px-2 py-1 text-xs font-medium transition-colors ${
+                        viewMode === 'board' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                      title="보드형"
+                    >
+                      <LayoutGrid size={12} />
+                      보드
+                    </button>
+                  </div>
                   {isViewingPast && activeSprint && (
                     <button
                       onClick={() => setViewingSprint(activeSprint)}
@@ -274,8 +298,8 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                 </p>
               )}
 
-              {/* Sprint task table (full columns) */}
-              {sprintTasks.length > 0 && (
+              {/* Sprint tasks - List or Board view */}
+              {sprintTasks.length > 0 && viewMode === 'list' && (
                 <div className="mt-3 border-t border-gray-100 pt-2">
                   <div className="text-xs font-medium text-gray-500 mb-1.5">스프린트 작업 ({sprintTasks.length})</div>
                   <div className="overflow-x-auto">
@@ -363,6 +387,128 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                         })}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Board (Kanban) view */}
+              {sprintTasks.length > 0 && viewMode === 'board' && (
+                <div className="mt-3 border-t border-gray-100 pt-3">
+                  <div className="flex gap-3 overflow-x-auto pb-2" style={{ minHeight: 200 }}>
+                    {STATUS_OPTIONS.map(status => {
+                      const columnTasks = sprintTasks
+                        .filter(t => t.status === status.value)
+                        .sort((a, b) => {
+                          // Sort by assignee name, then by updated_at desc
+                          const aName = members?.find(m => m.id === a.assignee_id)?.name || ''
+                          const bName = members?.find(m => m.id === b.assignee_id)?.name || ''
+                          if (aName !== bName) return aName.localeCompare(bName)
+                          return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0)
+                        })
+
+                      const COLUMN_COLORS = {
+                        todo: 'bg-gray-50 border-gray-200',
+                        in_progress: 'bg-blue-50/50 border-blue-200',
+                        review: 'bg-yellow-50/50 border-yellow-200',
+                        done: 'bg-green-50/50 border-green-200',
+                      }
+
+                      const HEADER_COLORS = {
+                        todo: 'text-gray-600',
+                        in_progress: 'text-blue-600',
+                        review: 'text-yellow-700',
+                        done: 'text-green-600',
+                      }
+
+                      return (
+                        <div
+                          key={status.value}
+                          className={`flex-1 min-w-[200px] rounded-lg border ${COLUMN_COLORS[status.value] || 'bg-gray-50 border-gray-200'}`}
+                        >
+                          {/* Column header */}
+                          <div className="px-3 py-2 border-b border-gray-100/80">
+                            <div className="flex items-center justify-between">
+                              <span className={`text-xs font-bold ${HEADER_COLORS[status.value] || 'text-gray-600'}`}>
+                                {status.label}
+                              </span>
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${status.color}`}>
+                                {columnTasks.length}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Cards */}
+                          <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto">
+                            {columnTasks.length === 0 && (
+                              <div className="text-center py-6 text-xs text-gray-300">없음</div>
+                            )}
+                            {columnTasks.map(t => {
+                              const assignee = members?.find(m => m.id === t.assignee_id)
+                              const pr = getPriorityInfo(t.priority)
+                              const dday = getDday(t.end_date)
+                              const isOverdue = t.end_date && new Date(t.end_date) < new Date() && t.status !== 'done'
+                              return (
+                                <div
+                                  key={t.id}
+                                  className="relative bg-white rounded-lg border border-gray-100 p-2.5 shadow-sm hover:shadow-md hover:border-gray-200 cursor-pointer transition-all group/card"
+                                  onClick={() => onEditTask?.(t)}
+                                >
+                                  {/* Task name */}
+                                  <div className={`text-xs font-medium leading-snug mb-1.5 ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                                    {t.name}
+                                  </div>
+
+                                  {/* Assignee + Priority */}
+                                  <div className="flex items-center justify-between gap-1">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      {assignee ? (
+                                        <div className="flex items-center gap-1">
+                                          <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                                            {assignee.name[0]}
+                                          </div>
+                                          <span className="text-[10px] text-gray-500 truncate">{assignee.name}</span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-[10px] text-gray-300">미배정</span>
+                                      )}
+                                    </div>
+                                    <span className={`text-[10px] font-medium ${pr.color}`}>{pr.label}</span>
+                                  </div>
+
+                                  {/* Date + D-Day */}
+                                  {t.end_date && (
+                                    <div className="flex items-center justify-between mt-1.5">
+                                      <span className={`text-[10px] ${isOverdue ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                                        {formatDate(t.end_date)}
+                                      </span>
+                                      {dday && t.status !== 'done' && (
+                                        <span className={`text-[10px] font-semibold ${
+                                          dday === 'D-Day' ? 'text-red-600' :
+                                          dday.startsWith('D+') ? 'text-red-400' :
+                                          parseInt(dday.replace('D-','')) <= 3 ? 'text-orange-500' : 'text-gray-400'
+                                        }`}>{dday}</span>
+                                      )}
+                                      {t.status === 'done' && <span className="text-green-500 text-[10px]">✓ 완료</span>}
+                                    </div>
+                                  )}
+
+                                  {/* Remove button */}
+                                  {canEdit && !isViewingPast && (
+                                    <button
+                                      onClick={e => { e.stopPropagation(); handleRemoveTask(t.id) }}
+                                      className="absolute top-1.5 right-1.5 opacity-0 group-hover/card:opacity-100 p-0.5 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-all"
+                                      title="스프린트에서 제거"
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}

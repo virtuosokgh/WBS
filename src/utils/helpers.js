@@ -17,9 +17,8 @@ export const ROLE_COLORS = {
 export const STATUS_OPTIONS = [
   { value: 'todo', label: '대기', color: 'bg-gray-100 text-gray-600' },
   { value: 'in_progress', label: '진행중', color: 'bg-blue-100 text-blue-700' },
-  { value: 'review', label: '검토중', color: 'bg-yellow-100 text-yellow-700' },
+  { value: 'review', label: '테스트중', color: 'bg-yellow-100 text-yellow-700' },
   { value: 'done', label: '완료', color: 'bg-green-100 text-green-700' },
-  { value: 'blocked', label: '블로킹', color: 'bg-red-100 text-red-700' },
 ]
 
 export const PRIORITY_OPTIONS = [
