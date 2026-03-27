@@ -466,7 +466,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                           </div>
 
                           {/* Cards */}
-                          <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto">
+                          <div className="p-2 space-y-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 340px)' }}>
                             {columnTasks.length === 0 && (
                               <div className="text-center py-6 text-xs text-gray-300">없음</div>
                             )}

@@ -225,17 +225,17 @@ export default function GanttView({ projectId, onGoToScreen }) {
         </div>
       ) : (
         <div className="overflow-x-auto border border-gray-200 rounded-xl" style={{ overflow: 'visible' }}>
-          <div className="flex" style={{ minWidth: `${420 + days.length * DAY_WIDTH}px` }}>
+          <div className="flex" style={{ minWidth: `${440 + days.length * DAY_WIDTH}px` }}>
             {/* Left: 작업명 + 액션 버튼 */}
-            <div className="flex-shrink-0 w-[420px] border-r border-gray-200">
+            <div className="flex-shrink-0 w-[440px] border-r border-gray-200">
               {/* 헤더 */}
               <div className="h-12 border-b border-gray-200 flex items-end px-3 pb-1 bg-gray-50">
                 <span className="text-xs font-semibold text-gray-500 flex-1">작업명</span>
-                <div className="flex items-center flex-shrink-0" style={{ width: 200 }}>
+                <div className="flex items-center flex-shrink-0" style={{ width: 220 }}>
                   <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 46 }}>Jira</span>
                   <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 52 }}>산출물</span>
                   <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 42 }}>기획</span>
-                  <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 60 }}>상태</span>
+                  <span className="text-xs font-semibold text-gray-500 text-center" style={{ width: 80 }}>상태</span>
                 </div>
               </div>
 
@@ -270,7 +270,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
                     </div>
 
                     {/* 액션 버튼 3개 + 상태 - 고정 너비 */}
-                    <div className="flex items-center flex-shrink-0" style={{ width: 200 }}>
+                    <div className="flex items-center flex-shrink-0" style={{ width: 220 }}>
                       <button
                         onClick={() => openModal('jira', task)}
                         className={`flex items-center justify-center gap-0.5 py-1 rounded text-[10px] font-medium transition-colors ${
@@ -311,7 +311,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
                       </button>
 
                       {/* 상태 배지 */}
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium text-center whitespace-nowrap ${status.color}`} style={{ width: 60 }}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium text-center whitespace-nowrap truncate ${status.color}`} style={{ width: 80 }}>
                         {status.label}
                       </span>
                     </div>
@@ -439,10 +439,11 @@ export default function GanttView({ projectId, onGoToScreen }) {
                       style={{ height: ROW_HEIGHT, zIndex: 2 }}
                     >
                       <div
-                        className={`absolute rounded-md ${barColor} flex items-center px-2 group/bar`}
-                        style={{ left, width, height: 26, overflow: 'visible', zIndex: 3 }}
+                        className={`absolute rounded-md ${barColor} flex items-center px-1.5 group/bar cursor-pointer`}
+                        style={{ left, width: Math.max(width, 24), height: 26, overflow: 'visible', zIndex: 3 }}
                       >
-                        <span className="text-xs text-white font-medium truncate flex-1">{task.name}</span>
+                        {width >= 80 && <span className="text-xs text-white font-medium truncate flex-1">{task.name}</span>}
+                        {width < 80 && <span className="text-[10px] text-white font-medium truncate flex-1">{formatDate(task.end_date)}</span>}
                         {/* 바 위 아이콘 - 항상 표시 */}
                         <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
                           {task.jira_url && <ExternalLink size={11} className="text-white/80" />}

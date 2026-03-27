@@ -401,7 +401,7 @@ export default function ScreenListPanel({
 
       {/* Content */}
       <div className="slp-content">
-        {viewMode === 'tree' && hasTree ? renderTreeView() : renderListView()}
+        {viewMode === 'tree' ? (hasTree ? renderTreeView() : <div className="slp-loading-tree" />) : renderListView()}
 
         {/* Add button at bottom (tree mode) */}
         {viewMode === 'tree' && canEdit && onAddScreen && (
