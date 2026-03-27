@@ -363,7 +363,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
 
               {/* 스프린트 라벨 전용 행 */}
               {sprints.length > 0 && minDate && (
-                <div className="relative border-b border-gray-100" style={{ height: 24 }}>
+                <div className="relative border-b border-gray-100" style={{ height: 24, zIndex: 0 }}>
                   {sprints.map(sprint => {
                     const sStart = new Date(sprint.startDate)
                     const sEnd = new Date(sprint.endDate)
@@ -375,7 +375,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
                     return (
                       <div key={sprint.id + '-label'} className={`absolute top-0 bottom-0 flex items-center justify-center overflow-hidden ${
                         isActive ? 'bg-indigo-100/80' : 'bg-gray-100/60'
-                      }`} style={{ left: sLeft, width: sWidth, zIndex: 5 }}>
+                      }`} style={{ left: sLeft, width: sWidth, zIndex: 1 }}>
                         <div className={`px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
                           isActive ? 'text-indigo-700' : 'text-gray-500'
                         }`}>
@@ -388,7 +388,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
               )}
 
               {/* 행 */}
-              <div className="relative">
+              <div className="relative" style={{ zIndex: 2 }}>
                 {/* 스프린트 범위 배경 - 전체 높이로 표시 */}
                 {sprints.length > 0 && minDate && sprints.map(sprint => {
                   const sStart = new Date(sprint.startDate)
