@@ -47,7 +47,12 @@ export default function GanttView({ projectId, onGoToScreen }) {
 
   async function handleSaveLinks(taskId, updates) {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t))
-    await updateTaskLinks(taskId, updates)
+    const { error } = await updateTaskLinks(taskId, updates)
+    if (error) {
+      console.error('산출물 저장 실패:', error)
+      alert('저장에 실패했습니다. DB 컬럼이 존재하는지 확인해주세요.\n\n' + error.message)
+      fetchData() // revert local state
+    }
     setActiveModal(null)
   }
 

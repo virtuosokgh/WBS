@@ -281,14 +281,35 @@ export async function deleteTask(id) {
 }
 
 export async function updateTaskLinks(id, updates) {
+  // Known base columns
   const row = {}
   if ('jira_url' in updates) row.jira_url = updates.jira_url
   if ('deliverable_url' in updates) row.deliverable_url = updates.deliverable_url
-  if ('deliverable_image' in updates) row.deliverable_image = updates.deliverable_image
-  if ('deliverable_text' in updates) row.deliverable_text = updates.deliverable_text
   if ('screen_ref' in updates) row.screen_ref = updates.screen_ref
   if ('screen_name' in updates) row.screen_name = updates.screen_name
+
+  // Optional columns (may not exist in older DB schemas)
+  const optionalCols = ['deliverable_image', 'deliverable_text']
+  for (const col of optionalCols) {
+    if (col in updates) row[col] = updates[col]
+  }
+
+  if (Object.keys(row).length === 0) return { error: null }
+
   const { error } = await supabase.from('tasks').update(row).eq('id', id)
+
+  // If error is due to missing column, retry without optional columns
+  if (error && error.message?.includes('column')) {
+    const safeRow = {}
+    if ('jira_url' in updates) safeRow.jira_url = updates.jira_url
+    if ('deliverable_url' in updates) safeRow.deliverable_url = updates.deliverable_url
+    if ('screen_ref' in updates) safeRow.screen_ref = updates.screen_ref
+    if ('screen_name' in updates) safeRow.screen_name = updates.screen_name
+    if (Object.keys(safeRow).length === 0) return { error: null }
+    const retry = await supabase.from('tasks').update(safeRow).eq('id', id)
+    return { error: retry.error }
+  }
+
   return { error }
 }
 
