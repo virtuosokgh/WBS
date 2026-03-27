@@ -136,12 +136,13 @@ interface Props {
   onRemoveScreen?: (id: string) => void
   canEdit?: boolean
   figmaTree?: FigmaPageTree[]
+  treeLoading?: boolean
   onTreeNodeSelect?: (node: FigmaTreeNode) => void
 }
 
 export default function ScreenListPanel({
   screens, activeScreenId, onSwitchScreen, onAddScreen, onRefresh, onRemoveScreen, canEdit,
-  figmaTree, onTreeNodeSelect,
+  figmaTree, treeLoading, onTreeNodeSelect,
 }: Props) {
   // Build a set of node IDs that already have a Screen
   const screenNodeIds = new Set(screens.map(s => s.frame.id))
@@ -174,10 +175,10 @@ export default function ScreenListPanel({
   }, [activeScreenId, activeScreen])
 
   // When figmaTree becomes available, switch to tree view and auto-expand pages
+  // When tree loading finishes with no tree, fall back to list view
   useEffect(() => {
     if (figmaTree && figmaTree.length > 0) {
       setViewMode('tree')
-      // Auto-expand all pages and top-level frames
       const initial = new Set<string>()
       for (const page of figmaTree) {
         initial.add(page.id)
@@ -186,8 +187,10 @@ export default function ScreenListPanel({
         }
       }
       setExpandedNodes(initial)
+    } else if (!treeLoading && (!figmaTree || figmaTree.length === 0)) {
+      setViewMode('list')
     }
-  }, [figmaTree])
+  }, [figmaTree, treeLoading])
 
   // Auto-expand ancestor path when active node changes
   useEffect(() => {
@@ -401,7 +404,7 @@ export default function ScreenListPanel({
 
       {/* Content */}
       <div className="slp-content">
-        {viewMode === 'tree' ? (hasTree ? renderTreeView() : <div className="slp-loading-tree" />) : renderListView()}
+        {viewMode === 'tree' && hasTree ? renderTreeView() : viewMode === 'tree' && treeLoading ? <div className="slp-loading-tree" /> : renderListView()}
 
         {/* Add button at bottom (tree mode) */}
         {viewMode === 'tree' && canEdit && onAddScreen && (

@@ -444,6 +444,7 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
             onRemoveScreen={canEdit ? handleRemoveScreen : undefined}
             canEdit={canEdit}
             figmaTree={figmaTree}
+            treeLoading={treeLoading}
             onTreeNodeSelect={canEdit ? handleTreeNodeSelect : undefined}
           />
           {activeFrame && showSpec ? (
