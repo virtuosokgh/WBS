@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Badge, BadgeSize, BADGE_SIZE_LABELS, BADGE_SIZE_PX } from '../types'
 import './Toolbar.css'
 
@@ -6,6 +7,7 @@ interface Props {
   pendingSize?: BadgeSize
   selectedBadge?: Badge | null
   onCancelPending: () => void
+  onAddBadge?: (label: string, size: BadgeSize) => void
   onUpdateBadgeSize?: (id: string, size: BadgeSize) => void
   onDeselectBadge?: () => void
   onExport: () => void
@@ -24,6 +26,7 @@ export default function Toolbar({
   pendingSize,
   selectedBadge,
   onCancelPending,
+  onAddBadge,
   onUpdateBadgeSize,
   onDeselectBadge,
   onExport,
@@ -36,6 +39,15 @@ export default function Toolbar({
   onNewProject,
   canEdit = true,
 }: Props) {
+  const [badgeInput, setBadgeInput] = useState('')
+  const [badgeSize, setBadgeSize] = useState<BadgeSize>('M')
+
+  function handleAddBadge() {
+    const label = badgeInput.trim()
+    if (!label || !onAddBadge) return
+    onAddBadge(label, badgeSize)
+    setBadgeInput('')
+  }
 
   return (
     <header className="toolbar">
@@ -124,6 +136,43 @@ export default function Toolbar({
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                 <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
               </svg>
+            </button>
+          </div>
+        ) : canEdit && onAddBadge ? (
+          <div className="badge-input-group">
+            <input
+              className="badge-input"
+              type="text"
+              value={badgeInput}
+              onChange={e => setBadgeInput(e.target.value.slice(0, 6))}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddBadge() }}
+              placeholder="뱃지 텍스트"
+              maxLength={6}
+            />
+            <div className="size-selector" role="group" aria-label="뱃지 크기 선택">
+              {BADGE_SIZE_LABELS.map(size => (
+                <button
+                  key={size}
+                  className={`size-option ${badgeSize === size ? 'active' : ''}`}
+                  onClick={() => setBadgeSize(size)}
+                  title={`크기 ${size}`}
+                  style={{
+                    width: BADGE_SIZE_PX[size].diameter * 0.72,
+                    height: BADGE_SIZE_PX[size].diameter * 0.72,
+                    fontSize: BADGE_SIZE_PX[size].fontSize - 1,
+                  }}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+            <button
+              className="btn-add-badge"
+              onClick={handleAddBadge}
+              disabled={!badgeInput.trim()}
+              title="뱃지 추가"
+            >
+              + 뱃지 추가
             </button>
           </div>
         ) : null}

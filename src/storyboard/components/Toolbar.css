@@ -164,6 +164,28 @@
   50%       { box-shadow: 0 2px 16px rgba(124,110,247,0.7); }
 }
 
+.badge-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-add-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  transition: background 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+.btn-add-badge:hover { background: var(--accent-hover); }
+.btn-add-badge:disabled { opacity: 0.4; cursor: not-allowed; }
+
 .badge-input {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -172,7 +194,7 @@
   font-size: 13px;
   color: var(--text);
   outline: none;
-  width: 220px;
+  width: 140px;
   transition: border-color 0.15s;
 }
 .badge-input:focus { border-color: var(--accent); }

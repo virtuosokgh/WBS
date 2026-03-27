@@ -422,6 +422,7 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
           pendingSize={pendingBadge?.size}
           selectedBadge={activeBadges.find(b => b.id === selectedBadgeId) ?? null}
           onCancelPending={() => setPendingBadge(null)}
+          onAddBadge={canEdit ? handleAddBadge : undefined}
           onUpdateBadgeSize={canEdit ? handleUpdateBadgeSize : undefined}
           onDeselectBadge={() => setSelectedBadgeId(null)}
           onExport={handleExport}
