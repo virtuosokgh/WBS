@@ -8,6 +8,7 @@ interface Props {
   selectedBadge?: Badge | null
   onCancelPending: () => void
   onAddBadge?: (label: string, size: BadgeSize) => void
+  badgeCount?: number
   onUpdateBadgeSize?: (id: string, size: BadgeSize) => void
   onDeselectBadge?: () => void
   onExport: () => void
@@ -27,6 +28,7 @@ export default function Toolbar({
   selectedBadge,
   onCancelPending,
   onAddBadge,
+  badgeCount = 0,
   onUpdateBadgeSize,
   onDeselectBadge,
   onExport,
@@ -43,8 +45,8 @@ export default function Toolbar({
   const [badgeSize, setBadgeSize] = useState<BadgeSize>('M')
 
   function handleAddBadge() {
-    const label = badgeInput.trim()
-    if (!label || !onAddBadge) return
+    if (!onAddBadge) return
+    const label = badgeInput.trim() || String(badgeCount + 1)
     onAddBadge(label, badgeSize)
     setBadgeInput('')
   }
@@ -146,7 +148,7 @@ export default function Toolbar({
               value={badgeInput}
               onChange={e => setBadgeInput(e.target.value.slice(0, 6))}
               onKeyDown={e => { if (e.key === 'Enter') handleAddBadge() }}
-              placeholder="뱃지 텍스트"
+              placeholder={String(badgeCount + 1)}
               maxLength={6}
             />
             <div className="size-selector" role="group" aria-label="뱃지 크기 선택">
@@ -166,13 +168,8 @@ export default function Toolbar({
                 </button>
               ))}
             </div>
-            <button
-              className="btn-add-badge"
-              onClick={handleAddBadge}
-              disabled={!badgeInput.trim()}
-              title="뱃지 추가"
-            >
-              + 뱃지 추가
+            <button className="btn-add-badge" onClick={handleAddBadge}>
+              +뱃지
             </button>
           </div>
         ) : null}
