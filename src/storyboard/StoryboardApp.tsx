@@ -12,7 +12,7 @@ import ScreenListPanel from './components/ScreenListPanel'
 import AutoPlanModal from './components/AutoPlanModal'
 import { exportAsHtml } from './exportHtml'
 import { FlowchartData } from './FlowchartView'
-import { getStoryboard, upsertStoryboard } from '../lib/db'
+import { getStoryboard, upsertStoryboard, getProjectFigmaToken, setProjectFigmaToken } from '../lib/db'
 import './storyboard.css'
 
 function generateId() {
@@ -46,6 +46,7 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
   const [showAutoPlan, setShowAutoPlan] = useState(false)
   const [figmaTree, setFigmaTree] = useState<FigmaPageTree[]>([])
   const [treeLoading, setTreeLoading] = useState(false)
+  const [figmaToken, setFigmaTokenState] = useState('')
 
   // Load from Supabase on mount
   useEffect(() => {
@@ -59,10 +60,15 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
           setActiveScreenId(s[0]?.id ?? null)
         }
       } catch {}
+      // fallback token from localStorage
+      setFigmaTokenState(localStorage.getItem('figma_token') || '')
       return
     }
     setLoadingFromDb(true)
-    getStoryboard(projectId).then(({ data }) => {
+    Promise.all([
+      getStoryboard(projectId),
+      getProjectFigmaToken(projectId),
+    ]).then(([{ data }, token]) => {
       if (data?.screens?.length) {
         const s = data.screens as Screen[]
         setScreens(s)
@@ -71,8 +77,19 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
       if (data?.flowchart) {
         setFlowchartData(data.flowchart as FlowchartData)
       }
+      // DB token takes priority, fallback to localStorage
+      const resolvedToken = token || localStorage.getItem('figma_token') || ''
+      setFigmaTokenState(resolvedToken)
       setLoadingFromDb(false)
     })
+  }, [projectId])
+
+  const saveFigmaToken = useCallback((token: string) => {
+    setFigmaTokenState(token)
+    localStorage.setItem('figma_token', token)
+    if (projectId) {
+      setProjectFigmaToken(projectId, token)
+    }
   }, [projectId])
 
   // Auto-save to Supabase (debounced) when canEdit
@@ -110,15 +127,14 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
   const treeFetchedRef = useRef(false)
   useEffect(() => {
     if (!figmaFileKey || treeFetchedRef.current || figmaTree.length > 0) return
-    const token = localStorage.getItem('figma_token') || ''
-    if (!token) return
+    if (!figmaToken) return
     treeFetchedRef.current = true
     setTreeLoading(true)
-    fetchFigmaNodeTree(figmaFileKey, token)
+    fetchFigmaNodeTree(figmaFileKey, figmaToken)
       .then(tree => setFigmaTree(tree))
       .catch(() => { /* tree is supplementary, don't block on failure */ })
       .finally(() => setTreeLoading(false))
-  }, [figmaFileKey, figmaTree.length])
+  }, [figmaFileKey, figmaTree.length, figmaToken])
 
   // Handle tree node selection: create a screen on-the-fly if needed
   const handleTreeNodeSelect = useCallback(async (node: FigmaTreeNode) => {
@@ -131,11 +147,10 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
     }
 
     if (!figmaFileKey) return
-    const token = localStorage.getItem('figma_token') || ''
-    if (!token) return
+    if (!figmaToken) return
 
     try {
-      const imageUrl = await fetchFigmaNodeImage(figmaFileKey, node.id, token)
+      const imageUrl = await fetchFigmaNodeImage(figmaFileKey, node.id, figmaToken)
       const frame: FigmaFrame = {
         id: node.id,
         name: node.name,
@@ -269,8 +284,8 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
 
   const handleSync = useCallback(async () => {
     if (!figmaFileKey) { alert('동기화할 Figma 파일 정보가 없습니다.'); return }
-    const token = localStorage.getItem('figma_token') || ''
-    if (!token) { alert('저장된 토큰이 없습니다.'); return }
+    if (!figmaToken) { alert('저장된 토큰이 없습니다.'); return }
+    const token = figmaToken
 
     setSyncing(true)
     try {
@@ -401,6 +416,8 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
     return (
       <div className="sb-root">
         <FigmaSetup
+          figmaToken={figmaToken}
+          onTokenChange={saveFigmaToken}
           onFramesLoaded={(frames, tree) => {
             const newScreens: Screen[] = frames.map(frame => ({ id: generateId(), frame, badges: [] }))
             setScreens(newScreens)
@@ -450,7 +467,7 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
             onTreeNodeSelect={canEdit ? handleTreeNodeSelect : undefined}
           />
           {activeFrame && showSpec ? (
-            <SpecView frame={activeFrame} />
+            <SpecView frame={activeFrame} figmaToken={figmaToken} />
           ) : (
             <>
               {activeFrame && (
@@ -487,6 +504,8 @@ export default function StoryboardApp({ initialScreenId, projectId, canEdit = tr
             initialMode={modalConfig.mode}
             initialFileKey={modalConfig.fileKey}
             existingFrameIds={existingFrameIds}
+            figmaToken={figmaToken}
+            onTokenChange={saveFigmaToken}
             onAdd={handleAddScreen}
             onAddMultiple={handleAddScreens}
             onClose={() => setModalConfig(null)}

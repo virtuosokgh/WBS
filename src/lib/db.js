@@ -51,6 +51,23 @@ export async function deleteProject(id) {
   return { error }
 }
 
+export async function getProjectFigmaToken(projectId) {
+  const { data } = await supabase
+    .from('projects')
+    .select('figma_token')
+    .eq('id', projectId)
+    .single()
+  return data?.figma_token || ''
+}
+
+export async function setProjectFigmaToken(projectId, token) {
+  const { error } = await supabase
+    .from('projects')
+    .update({ figma_token: token })
+    .eq('id', projectId)
+  return { error }
+}
+
 // ─── PROJECT INVITATIONS ────────────────────────────────────
 export async function getPendingInvitations(userId) {
   const { data, error } = await supabase

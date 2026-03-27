@@ -4,11 +4,13 @@ import { FigmaFrame, FigmaPageTree } from '../types'
 import './FigmaSetup.css'
 
 interface Props {
+  figmaToken?: string
+  onTokenChange?: (token: string) => void
   onFramesLoaded: (frames: FigmaFrame[], tree?: FigmaPageTree[]) => void
 }
 
-export default function FigmaSetup({ onFramesLoaded }: Props) {
-  const savedToken = localStorage.getItem('figma_token') || ''
+export default function FigmaSetup({ figmaToken: externalToken, onTokenChange, onFramesLoaded }: Props) {
+  const savedToken = externalToken || localStorage.getItem('figma_token') || ''
   const [token, setToken] = useState(savedToken)
   const [showTokenField, setShowTokenField] = useState(!savedToken)
   const [url, setUrl] = useState('')
@@ -25,7 +27,11 @@ export default function FigmaSetup({ onFramesLoaded }: Props) {
     setStatus('')
 
     try {
-      localStorage.setItem('figma_token', token.trim())
+      if (onTokenChange) {
+        onTokenChange(token.trim())
+      } else {
+        localStorage.setItem('figma_token', token.trim())
+      }
       const parsed = parseFigmaUrl(url.trim())
       if (!parsed) throw new Error('올바른 Figma URL 형식이 아닙니다.')
 

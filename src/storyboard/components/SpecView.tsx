@@ -321,9 +321,9 @@ function NodePropsPanel({ info }: { info: NodeInfo }) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-interface Props { frame: FigmaFrame }
+interface Props { frame: FigmaFrame; figmaToken?: string }
 
-export default function SpecView({ frame }: Props) {
+export default function SpecView({ frame, figmaToken: externalToken }: Props) {
   const [root, setRoot] = useState<FNode | null>(null)
   const [nodes, setNodes] = useState<NodeInfo[]>([])
   const [loading, setLoading] = useState(false)
@@ -339,7 +339,7 @@ export default function SpecView({ frame }: Props) {
     if (prevUrl.current === frame.figmaUrl) return
     prevUrl.current = frame.figmaUrl
 
-    const token = localStorage.getItem('figma_token') || ''
+    const token = externalToken || localStorage.getItem('figma_token') || ''
     if (!token) { setNoToken(true); return }
     setNoToken(false)
     setLoading(true)

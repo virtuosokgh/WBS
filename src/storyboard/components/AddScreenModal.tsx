@@ -10,6 +10,8 @@ interface Props {
   existingFrameIds?: string[]
   initialFileKey?: string
   initialMode?: 'url' | 'project'
+  figmaToken?: string
+  onTokenChange?: (token: string) => void
 }
 
 export default function AddScreenModal({
@@ -19,8 +21,10 @@ export default function AddScreenModal({
   existingFrameIds = [],
   initialFileKey,
   initialMode = 'url',
+  figmaToken: externalToken,
+  onTokenChange,
 }: Props) {
-  const token = localStorage.getItem('figma_token') || ''
+  const token = externalToken || localStorage.getItem('figma_token') || ''
   const [mode, setMode] = useState<'url' | 'project'>(initialMode)
 
   // ── URL 모드 상태 ──
