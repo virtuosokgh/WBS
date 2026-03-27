@@ -279,7 +279,7 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
                 <button
                   onClick={() => setShowSlackModal(true)}
                   className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${
-                    getSlackWebhookUrl()
+                    getSlackWebhookUrl(projectId)
                       ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
                       : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
                   }`}
@@ -354,24 +354,24 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
 
       {/* Slack 설정 모달 */}
       {showSlackModal && (
-        <SlackSettingsModal onClose={() => setShowSlackModal(false)} />
+        <SlackSettingsModal projectId={projectId} onClose={() => setShowSlackModal(false)} />
       )}
     </div>
   )
 }
 
-function SlackSettingsModal({ onClose }) {
-  const [url, setUrl] = useState(getSlackWebhookUrl())
+function SlackSettingsModal({ projectId, onClose }) {
+  const [url, setUrl] = useState(getSlackWebhookUrl(projectId))
   const [saved, setSaved] = useState(false)
 
   function handleSave() {
-    setSlackWebhookUrl(url)
+    setSlackWebhookUrl(projectId, url)
     setSaved(true)
     setTimeout(() => onClose(), 800)
   }
 
   function handleRemove() {
-    setSlackWebhookUrl('')
+    setSlackWebhookUrl(projectId, '')
     setUrl('')
     setSaved(true)
     setTimeout(() => onClose(), 800)
@@ -403,7 +403,7 @@ function SlackSettingsModal({ onClose }) {
           <p>3. 저장하면 변경사항이 해당 채널로 알림됩니다</p>
         </div>
 
-        {getSlackWebhookUrl() && (
+        {getSlackWebhookUrl(projectId) && (
           <button
             onClick={handleRemove}
             className="text-xs text-gray-400 hover:text-red-500 transition-colors"

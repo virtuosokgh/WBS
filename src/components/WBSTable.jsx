@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Plus, Trash2, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { getTasks, createTask, updateTask, deleteTask, updateTaskStatus, getProjectParticipants } from '../lib/db'
 import { STATUS_OPTIONS, SPRINT_STATUS_OPTIONS, BACKLOG_STATUS, ROLE_COLORS, getStatusInfo, getPriorityInfo, formatDate, getDday } from '../utils/helpers'
@@ -112,46 +112,48 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
     const newStatus = getStatusInfo(status).label
     await updateTaskStatus(id, status)
     setTasks(t => t.map(x => x.id === id ? { ...x, status } : x))
-    notifyStatusChange({ taskName: task?.name || '', oldStatus, newStatus })
+    notifyStatusChange(projectId, { taskName: task?.name || '', oldStatus, newStatus })
   }
 
   // Determine active sprint taskIds for filtering
-  const activeSprintTaskIds = viewingSprint && viewingSprint.status === 'active'
-    ? new Set(viewingSprint.taskIds)
-    : new Set()
+  const activeSprintTaskIds = useMemo(() => (
+    viewingSprint && viewingSprint.status === 'active'
+      ? new Set(viewingSprint.taskIds)
+      : new Set()
+  ), [viewingSprint])
 
   const isViewingPastSprint = viewingSprint && viewingSprint.status === 'completed'
 
-  // For past sprint view: show only sprint tasks. For normal view: show tasks NOT in active sprint.
-  let displayTasks
-  if (isViewingPastSprint) {
-    displayTasks = tasks.filter(t => viewingSprint.taskIds.includes(t.id))
-  } else {
-    displayTasks = tasks.filter(t => !activeSprintTaskIds.has(t.id))
-  }
-
-  // Apply filters
-  if (filterStatus) {
-    displayTasks = displayTasks.filter(t => t.status === filterStatus)
-  }
-  if (filterAssignee) {
-    if (filterAssignee === '__unassigned__') {
-      displayTasks = displayTasks.filter(t => !t.assignee_id)
+  // Memoize filtered/computed task lists
+  const { displayTasks, rootTasks, childMap, activeFilterCount } = useMemo(() => {
+    let filtered
+    if (isViewingPastSprint) {
+      const sprintIds = new Set(viewingSprint.taskIds)
+      filtered = tasks.filter(t => sprintIds.has(t.id))
     } else {
-      displayTasks = displayTasks.filter(t => t.assignee_id === filterAssignee)
+      filtered = tasks.filter(t => !activeSprintTaskIds.has(t.id))
     }
-  }
-
-  const rootTasks = displayTasks.filter(t => !t.parent_id)
-  const childMap = {}
-  displayTasks.forEach(t => {
-    if (t.parent_id) {
-      if (!childMap[t.parent_id]) childMap[t.parent_id] = []
-      childMap[t.parent_id].push(t)
+    if (filterStatus) filtered = filtered.filter(t => t.status === filterStatus)
+    if (filterAssignee) {
+      filtered = filterAssignee === '__unassigned__'
+        ? filtered.filter(t => !t.assignee_id)
+        : filtered.filter(t => t.assignee_id === filterAssignee)
     }
-  })
-
-  const activeFilterCount = [filterStatus, filterAssignee].filter(Boolean).length
+    const roots = filtered.filter(t => !t.parent_id)
+    const children = {}
+    filtered.forEach(t => {
+      if (t.parent_id) {
+        if (!children[t.parent_id]) children[t.parent_id] = []
+        children[t.parent_id].push(t)
+      }
+    })
+    return {
+      displayTasks: filtered,
+      rootTasks: roots,
+      childMap: children,
+      activeFilterCount: [filterStatus, filterAssignee].filter(Boolean).length,
+    }
+  }, [tasks, activeSprintTaskIds, isViewingPastSprint, viewingSprint, filterStatus, filterAssignee])
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
@@ -309,6 +311,7 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
           saving={saving}
           serverError={saveError}
           currentUser={currentUser}
+          projectId={projectId}
         />
       )}
     </div>

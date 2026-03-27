@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid, FileText } from 'lucide-react'
 import { getSprints, getActiveSprint, getNextSprintNumber, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription } from '../lib/sprints'
 import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS, SPRINT_STATUS_OPTIONS } from '../utils/helpers'
@@ -8,6 +8,20 @@ const STATUS_BADGE = {
   active: { label: '진행중', className: 'bg-blue-100 text-blue-700' },
   completed: { label: '완료', className: 'bg-green-100 text-green-700' },
   planned: { label: '예정', className: 'bg-gray-100 text-gray-500' },
+}
+
+const COLUMN_COLORS = {
+  todo: 'bg-gray-50 border-gray-200',
+  in_progress: 'bg-blue-50/50 border-blue-200',
+  review: 'bg-yellow-50/50 border-yellow-200',
+  done: 'bg-green-50/50 border-green-200',
+}
+
+const HEADER_COLORS = {
+  todo: 'text-gray-600',
+  in_progress: 'text-blue-600',
+  review: 'text-yellow-700',
+  done: 'text-green-600',
 }
 
 function SprintStatusBadge({ status }) {
@@ -123,11 +137,36 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   const isViewingPast = viewingSprint && viewingSprint.status === 'completed'
   const currentSprint = viewingSprint || activeSprint
 
-  // Sprint tasks
-  const sprintTasks = currentSprint
-    ? tasks.filter(t => currentSprint.taskIds.includes(t.id))
-    : []
-  const sprintDoneCount = sprintTasks.filter(t => t.status === 'done').length
+  // Sprint tasks - memoized
+  const sprintTasks = useMemo(() => {
+    if (!currentSprint) return []
+    const idSet = new Set(currentSprint.taskIds)
+    return tasks.filter(t => idSet.has(t.id))
+  }, [currentSprint, tasks])
+  const sprintDoneCount = useMemo(() => sprintTasks.filter(t => t.status === 'done').length, [sprintTasks])
+
+  // Pre-build member lookup map for O(1) access
+  const memberMap = useMemo(() => {
+    const map = new Map()
+    members?.forEach(m => map.set(m.id, m))
+    return map
+  }, [members])
+
+  // Pre-compute board columns for kanban view
+  const boardColumns = useMemo(() => {
+    if (!sprintTasks.length) return []
+    return SPRINT_STATUS_OPTIONS.map(status => {
+      const columnTasks = sprintTasks
+        .filter(t => t.status === status.value)
+        .sort((a, b) => {
+          const aName = memberMap.get(a.assignee_id)?.name || ''
+          const bName = memberMap.get(b.assignee_id)?.name || ''
+          if (aName !== bName) return aName.localeCompare(bName)
+          return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0)
+        })
+      return { status, tasks: columnTasks }
+    })
+  }, [sprintTasks, memberMap])
 
   return (
     <div className="mb-4">
@@ -348,7 +387,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                         {sprintTasks.map(t => {
                           const st = getStatusInfo(t.status)
                           const pr = getPriorityInfo(t.priority)
-                          const assignee = members ? members.find(m => m.id === t.assignee_id) : null
+                          const assignee = memberMap.get(t.assignee_id)
                           const dday = getDday(t.end_date)
                           const isOverdue = t.end_date && new Date(t.end_date) < new Date() && t.status !== 'done'
                           return (
@@ -423,32 +462,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
               {sprintTasks.length > 0 && viewMode === 'board' && (
                 <div className="mt-3 border-t border-gray-100 pt-3">
                   <div className="flex gap-3 overflow-x-auto pb-2" style={{ minHeight: 200 }}>
-                    {SPRINT_STATUS_OPTIONS.map(status => {
-                      const columnTasks = sprintTasks
-                        .filter(t => t.status === status.value)
-                        .sort((a, b) => {
-                          // Sort by assignee name, then by updated_at desc
-                          const aName = members?.find(m => m.id === a.assignee_id)?.name || ''
-                          const bName = members?.find(m => m.id === b.assignee_id)?.name || ''
-                          if (aName !== bName) return aName.localeCompare(bName)
-                          return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0)
-                        })
-
-                      const COLUMN_COLORS = {
-                        todo: 'bg-gray-50 border-gray-200',
-                        in_progress: 'bg-blue-50/50 border-blue-200',
-                        review: 'bg-yellow-50/50 border-yellow-200',
-                        done: 'bg-green-50/50 border-green-200',
-                      }
-
-                      const HEADER_COLORS = {
-                        todo: 'text-gray-600',
-                        in_progress: 'text-blue-600',
-                        review: 'text-yellow-700',
-                        done: 'text-green-600',
-                      }
-
-                      return (
+                    {boardColumns.map(({ status, tasks: columnTasks }) => (
                         <div
                           key={status.value}
                           className={`flex-1 min-w-[200px] rounded-lg border ${COLUMN_COLORS[status.value] || 'bg-gray-50 border-gray-200'}`}
@@ -471,7 +485,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                               <div className="text-center py-6 text-xs text-gray-300">없음</div>
                             )}
                             {columnTasks.map(t => {
-                              const assignee = members?.find(m => m.id === t.assignee_id)
+                              const assignee = memberMap.get(t.assignee_id)
                               const pr = getPriorityInfo(t.priority)
                               const dday = getDday(t.end_date)
                               const isOverdue = t.end_date && new Date(t.end_date) < new Date() && t.status !== 'done'
@@ -536,7 +550,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                           </div>
                         </div>
                       )
-                    })}
+                    )}
                   </div>
                 </div>
               )}

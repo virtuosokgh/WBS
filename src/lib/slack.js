@@ -1,22 +1,26 @@
 // Slack Incoming Webhook integration
 // Webhook URL is stored per-project in localStorage
 
-const STORAGE_KEY = 'slack_webhook_url'
+const STORAGE_PREFIX = 'slack_webhook_'
 
-export function getSlackWebhookUrl() {
-  return localStorage.getItem(STORAGE_KEY) || ''
+export function getSlackWebhookUrl(projectId) {
+  // Try per-project key first, fall back to legacy global key
+  return localStorage.getItem(`${STORAGE_PREFIX}${projectId}`)
+    || localStorage.getItem('slack_webhook_url')
+    || ''
 }
 
-export function setSlackWebhookUrl(url) {
+export function setSlackWebhookUrl(projectId, url) {
+  const key = `${STORAGE_PREFIX}${projectId}`
   if (url) {
-    localStorage.setItem(STORAGE_KEY, url.trim())
+    localStorage.setItem(key, url.trim())
   } else {
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(key)
   }
 }
 
-export async function sendSlackNotification(message) {
-  const webhookUrl = getSlackWebhookUrl()
+export async function sendSlackNotification(projectId, message) {
+  const webhookUrl = getSlackWebhookUrl(projectId)
   if (!webhookUrl) return
 
   try {
@@ -30,23 +34,23 @@ export async function sendSlackNotification(message) {
   }
 }
 
-export function notifyStatusChange({ taskName, oldStatus, newStatus, changedBy }) {
+export function notifyStatusChange(projectId, { taskName, oldStatus, newStatus, changedBy }) {
   const msg = `📋 *상태 변경* | \`${taskName}\`\n${oldStatus} → *${newStatus}*${changedBy ? `\n변경자: ${changedBy}` : ''}`
-  sendSlackNotification(msg)
+  sendSlackNotification(projectId, msg)
 }
 
-export function notifyAssigneeChange({ taskName, oldAssignee, newAssignee, changedBy }) {
+export function notifyAssigneeChange(projectId, { taskName, oldAssignee, newAssignee, changedBy }) {
   const msg = `👤 *담당자 변경* | \`${taskName}\`\n${oldAssignee || '미배정'} → *${newAssignee || '미배정'}*${changedBy ? `\n변경자: ${changedBy}` : ''}`
-  sendSlackNotification(msg)
+  sendSlackNotification(projectId, msg)
 }
 
-export function notifyTaskCreated({ taskName, assignee, changedBy }) {
+export function notifyTaskCreated(projectId, { taskName, assignee, changedBy }) {
   const msg = `✅ *새 작업* | \`${taskName}\`${assignee ? `\n담당자: ${assignee}` : ''}${changedBy ? `\n생성자: ${changedBy}` : ''}`
-  sendSlackNotification(msg)
+  sendSlackNotification(projectId, msg)
 }
 
-export function notifyComment({ taskName, comment, author }) {
+export function notifyComment(projectId, { taskName, comment, author }) {
   const plain = comment.replace(/<[^>]*>/g, '').slice(0, 100)
   const msg = `💬 *댓글* | \`${taskName}\`\n${author}: ${plain}${comment.replace(/<[^>]*>/g, '').length > 100 ? '...' : ''}`
-  sendSlackNotification(msg)
+  sendSlackNotification(projectId, msg)
 }

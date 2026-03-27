@@ -7,6 +7,17 @@ import Modal from './Modal'
 
 const DAY_WIDTH = 28
 const ROW_HEIGHT = 44
+const GANTT_RANGE_DAYS = 15
+
+const STATUS_BAR_COLORS = {
+  backlog: 'bg-gray-300',
+  todo: 'bg-gray-400',
+  in_progress: 'bg-blue-400',
+  test_request: 'bg-orange-400',
+  review: 'bg-yellow-400',
+  done_no_test: 'bg-emerald-400',
+  done: 'bg-green-400',
+}
 
 export default function GanttView({ projectId, onGoToScreen }) {
   const [tasks, setTasks] = useState([])
@@ -72,9 +83,9 @@ export default function GanttView({ projectId, onGoToScreen }) {
     const now = new Date()
     now.setHours(0, 0, 0, 0)
     const min = new Date(now)
-    min.setDate(min.getDate() - 15)
+    min.setDate(min.getDate() - GANTT_RANGE_DAYS)
     const max = new Date(now)
-    max.setDate(max.getDate() + 15)
+    max.setDate(max.getDate() + GANTT_RANGE_DAYS)
 
     const dayList = []
     const cursor = new Date(min)
@@ -83,7 +94,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
       cursor.setDate(cursor.getDate() + 1)
     }
     return { minDate: min, days: dayList }
-  }, [filteredTasks])
+  }, []) // Fixed date range, no dependencies needed
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
@@ -128,16 +139,6 @@ export default function GanttView({ projectId, onGoToScreen }) {
     } else { curCount++ }
   })
   if (curMonth) months.push({ key: curMonth, count: curCount })
-
-  const STATUS_BAR_COLORS = {
-    backlog: 'bg-gray-300',
-    todo: 'bg-gray-400',
-    in_progress: 'bg-blue-400',
-    test_request: 'bg-orange-400',
-    review: 'bg-yellow-400',
-    done_no_test: 'bg-emerald-400',
-    done: 'bg-green-400',
-  }
 
   function clearFilters() {
     setSearchText('')

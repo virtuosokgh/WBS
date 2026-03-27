@@ -159,7 +159,7 @@ function RichEditor({ value, onChange }) {
   )
 }
 
-export default function TaskModal({ task, members, onClose, onSave, saving = false, serverError = '', currentUser }) {
+export default function TaskModal({ task, members, onClose, onSave, saving = false, serverError = '', currentUser, projectId }) {
   const [form, setForm] = useState({
     name: task?.name || '',
     description: task?.description || '',
@@ -201,7 +201,7 @@ export default function TaskModal({ task, members, onClose, onSave, saving = fal
     if (!error && data) {
       setComments(prev => [...prev, data])
       setNewComment('')
-      notifyComment({ taskName: task.name || form.name, comment: newComment.trim(), author: userName })
+      notifyComment(projectId, { taskName: task.name || form.name, comment: newComment.trim(), author: userName })
       setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     }
     setPostingComment(false)
