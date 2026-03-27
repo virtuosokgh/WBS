@@ -19,7 +19,7 @@ function SprintStatusBadge({ status }) {
   )
 }
 
-export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange, onRefreshSprints, members, onEditTask, onStatusChange }) {
+export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange, onRefreshSprints, members, onEditTask, onStatusChange, onViewModeChange }) {
   const [sprints, setSprints] = useState([])
   const [activeSprint, setActiveSprint] = useState(null)
   const [viewingSprint, setViewingSprint] = useState(null)
@@ -28,7 +28,11 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
   const [showSelector, setShowSelector] = useState(false)
   const [dragOver, setDragOver] = useState(false)
-  const [viewMode, setViewMode] = useState('list') // 'list' | 'board'
+  const [viewMode, _setViewMode] = useState('list') // 'list' | 'board'
+  const setViewMode = useCallback((mode) => {
+    _setViewMode(mode)
+    onViewModeChange?.(mode)
+  }, [onViewModeChange])
   const [showDescModal, setShowDescModal] = useState(false)
 
   const refresh = useCallback(() => {

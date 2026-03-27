@@ -23,6 +23,7 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [viewingSprint, setViewingSprint] = useState(null)
+  const [sprintViewMode, setSprintViewMode] = useState('list')
 
   // Filter state
   const [filterStatus, setFilterStatus] = useState('')
@@ -168,8 +169,10 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
         members={members}
         onEditTask={canEdit && !isViewingPastSprint ? openEdit : undefined}
         onStatusChange={canEdit && !isViewingPastSprint ? handleStatusChange : undefined}
+        onViewModeChange={setSprintViewMode}
       />
 
+      {sprintViewMode !== 'board' && (<>
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-gray-900">
           작업 목록 ({displayTasks.length}개)
@@ -295,6 +298,7 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
           </table>
         </div>
       )}
+      </>)}
 
       {showModal && (
         <TaskModal
