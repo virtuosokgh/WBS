@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid, FileText } from 'lucide-react'
-import { getSprints, getActiveSprint, getNextSprintNumber, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription } from '../lib/sprints'
+import { getSprints, getActiveSprint, getNextSprintNumber, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription, updateSprint } from '../lib/sprints'
 import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS, SPRINT_STATUS_OPTIONS } from '../utils/helpers'
 import Modal from './Modal'
 
@@ -48,6 +48,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
     onViewModeChange?.(mode)
   }, [onViewModeChange])
   const [showDescModal, setShowDescModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   const refresh = useCallback(() => {
     const all = getSprints(projectId)
@@ -281,10 +282,21 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
 
                   <SprintStatusBadge status={currentSprint.status} />
 
-                  <div className="flex items-center gap-1 text-xs text-gray-500">
-                    <Calendar size={12} />
-                    {formatDate(currentSprint.startDate)} ~ {formatDate(currentSprint.endDate)}
-                  </div>
+                  {canEdit && !isViewingPast ? (
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-md transition-colors"
+                      title="스프린트 날짜 수정"
+                    >
+                      <Calendar size={12} />
+                      {formatDate(currentSprint.startDate)} ~ {formatDate(currentSprint.endDate)}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <Calendar size={12} />
+                      {formatDate(currentSprint.startDate)} ~ {formatDate(currentSprint.endDate)}
+                    </div>
+                  )}
 
                   <span className="text-xs text-gray-500 whitespace-nowrap">
                     {sprintDoneCount}/{sprintTasks.length} 완료
@@ -604,6 +616,19 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
         />
       )}
 
+      {showEditModal && currentSprint && (
+        <SprintEditModal
+          sprint={currentSprint}
+          projectId={projectId}
+          onClose={() => setShowEditModal(false)}
+          onSave={(formData) => {
+            updateSprint(projectId, currentSprint.id, formData)
+            refresh()
+            setShowEditModal(false)
+          }}
+        />
+      )}
+
       {showDescModal && currentSprint && (
         <SprintDescriptionModal
           sprint={currentSprint}
@@ -653,6 +678,80 @@ function SprintCreateModal({ projectId, onClose, onCreate }) {
 
   return (
     <Modal title="새 스프린트" onClose={onClose} onConfirm={handleConfirm} confirmLabel="스프린트 시작">
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">스프린트 이름</label>
+          <input
+            type="text"
+            value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            autoFocus
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">시작일 <span className="text-red-500">*</span></label>
+            <input
+              type="date" value={form.startDate}
+              onChange={e => { setForm(f => ({ ...f, startDate: e.target.value })); setErrors(er => ({ ...er, startDate: '' })) }}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${errors.startDate ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'}`}
+            />
+            {errors.startDate && <p className="mt-1 text-xs text-red-500">{errors.startDate}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">종료일 <span className="text-red-500">*</span></label>
+            <input
+              type="date" value={form.endDate}
+              onChange={e => { setForm(f => ({ ...f, endDate: e.target.value })); setErrors(er => ({ ...er, endDate: '' })) }}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${errors.endDate ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'}`}
+            />
+            {errors.endDate && <p className="mt-1 text-xs text-red-500">{errors.endDate}</p>}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">스프린트 목표 (선택)</label>
+          <textarea
+            value={form.description}
+            onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            placeholder="이번 스프린트의 목표를 입력하세요"
+            rows={2}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          />
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/* -- Sprint Edit Modal -- */
+function SprintEditModal({ sprint, onClose, onSave }) {
+  const [form, setForm] = useState({
+    name: sprint.name || '',
+    startDate: sprint.startDate || '',
+    endDate: sprint.endDate || '',
+    description: sprint.description || '',
+  })
+  const [errors, setErrors] = useState({})
+
+  function validate() {
+    const e = {}
+    if (!form.startDate) e.startDate = '시작일을 입력해주세요.'
+    if (!form.endDate) e.endDate = '종료일을 입력해주세요.'
+    if (form.startDate && form.endDate && form.endDate < form.startDate) {
+      e.endDate = '종료일은 시작일 이후여야 합니다.'
+    }
+    return e
+  }
+
+  function handleConfirm() {
+    const e = validate()
+    if (Object.keys(e).length) { setErrors(e); return }
+    onSave(form)
+  }
+
+  return (
+    <Modal title="스프린트 수정" onClose={onClose} onConfirm={handleConfirm} confirmLabel="저장">
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">스프린트 이름</label>

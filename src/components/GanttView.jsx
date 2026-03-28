@@ -28,6 +28,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
   const [searchText, setSearchText] = useState('')
   const [filterAssignee, setFilterAssignee] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [filterSprint, setFilterSprint] = useState('')
 
   // ── 링크 모달 ──
   const [activeModal, setActiveModal] = useState(null) // { type, task }
@@ -65,8 +66,24 @@ export default function GanttView({ projectId, onGoToScreen }) {
     }
   }
 
+  // Load sprints (필터에서 사용하므로 filteredTasks보다 먼저 선언)
+  const sprints = useMemo(() => getSprints(projectId), [projectId, tasks])
+
   // ── 날짜 있는 작업 + 필터 적용 ──
   const filteredTasks = useMemo(() => {
+    // 스프린트 필터용 taskIds Set
+    let sprintTaskIds = null
+    if (filterSprint) {
+      if (filterSprint === '__no_sprint__') {
+        const allSprintIds = new Set()
+        sprints.forEach(s => s.taskIds?.forEach(id => allSprintIds.add(id)))
+        sprintTaskIds = { type: 'exclude', ids: allSprintIds }
+      } else {
+        const sprint = sprints.find(s => s.id === filterSprint)
+        sprintTaskIds = { type: 'include', ids: new Set(sprint?.taskIds || []) }
+      }
+    }
+
     return tasks
       .filter(t => t.start_date && t.end_date)
       .filter(t => !searchText || t.name.toLowerCase().includes(searchText.toLowerCase()))
@@ -76,12 +93,14 @@ export default function GanttView({ projectId, onGoToScreen }) {
         return t.assignee_id === filterAssignee
       })
       .filter(t => !filterStatus || t.status === filterStatus)
-  }, [tasks, searchText, filterAssignee, filterStatus])
+      .filter(t => {
+        if (!sprintTaskIds) return true
+        if (sprintTaskIds.type === 'exclude') return !sprintTaskIds.ids.has(t.id)
+        return sprintTaskIds.ids.has(t.id)
+      })
+  }, [tasks, searchText, filterAssignee, filterStatus, filterSprint, sprints])
 
-  const activeFilterCount = [searchText, filterAssignee, filterStatus].filter(Boolean).length
-
-  // Load sprints
-  const sprints = useMemo(() => getSprints(projectId), [projectId, tasks])
+  const activeFilterCount = [searchText, filterAssignee, filterStatus, filterSprint].filter(Boolean).length
 
   const { minDate, days } = useMemo(() => {
     // Fixed 30-day range: today - 15 days to today + 15 days
@@ -149,6 +168,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
     setSearchText('')
     setFilterAssignee('')
     setFilterStatus('')
+    setFilterSprint('')
   }
 
   return (
@@ -203,6 +223,27 @@ export default function GanttView({ projectId, onGoToScreen }) {
           </select>
           <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
+
+        {sprints.length > 0 && (
+          <div className="relative">
+            <select
+              value={filterSprint}
+              onChange={e => setFilterSprint(e.target.value)}
+              className={`pl-3 pr-7 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 appearance-none cursor-pointer bg-white ${
+                filterSprint ? 'border-indigo-400 text-indigo-700 bg-indigo-50' : 'border-gray-200 text-gray-600'
+              }`}
+            >
+              <option value="">스프린트 전체</option>
+              {[...sprints].reverse().map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.name}{s.status === 'active' ? ' (진행중)' : s.status === 'completed' ? ' (완료)' : ''}
+                </option>
+              ))}
+              <option value="__no_sprint__">스프린트 미포함</option>
+            </select>
+            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
+        )}
 
         {activeFilterCount > 0 && (
           <button

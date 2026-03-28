@@ -81,6 +81,17 @@ export function removeTaskFromSprint(projectId, sprintId, taskId) {
   saveSprints(projectId, sprints)
 }
 
+export function updateSprint(projectId, sprintId, { name, startDate, endDate, description }) {
+  const sprints = getSprints(projectId)
+  const idx = sprints.findIndex(s => s.id === sprintId)
+  if (idx === -1) return
+  if (name !== undefined) sprints[idx].name = name
+  if (startDate !== undefined) sprints[idx].startDate = startDate
+  if (endDate !== undefined) sprints[idx].endDate = endDate
+  if (description !== undefined) sprints[idx].description = description
+  saveSprints(projectId, sprints)
+}
+
 export function updateSprintDescription(projectId, sprintId, description) {
   const sprints = getSprints(projectId)
   const idx = sprints.findIndex(s => s.id === sprintId)
