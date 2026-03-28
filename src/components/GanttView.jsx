@@ -449,12 +449,15 @@ export default function GanttView({ projectId, onGoToScreen }) {
                   const sWidth = Math.max((Math.round((sEnd - sStart) / 86400000) + 1) * DAY_WIDTH, DAY_WIDTH)
                   const isActive = sprint.status === 'active'
                   return (
-                    <div key={sprint.id + '-bg'} className="absolute top-0 bottom-0" style={{ left: sLeft, width: sWidth, zIndex: 1 }}>
-                      {/* 배경 */}
-                      <div className={`absolute inset-0 ${isActive ? 'bg-indigo-50/40' : 'bg-gray-50/50'}`} />
-                      {/* 좌우 경계선 - 실선 2px */}
-                      <div className={`absolute top-0 bottom-0 left-0 ${isActive ? 'bg-indigo-300' : 'bg-gray-300'}`} style={{ width: 2 }} />
-                      <div className={`absolute top-0 bottom-0 right-0 ${isActive ? 'bg-indigo-300' : 'bg-gray-300'}`} style={{ width: 2 }} />
+                    <div key={sprint.id + '-bg'}>
+                      {/* 배경 - 행 뒤에 */}
+                      <div className={`absolute top-0 bottom-0 ${isActive ? 'bg-indigo-50/40' : 'bg-gray-50/50'}`}
+                        style={{ left: sLeft, width: sWidth, zIndex: 0 }} />
+                      {/* 좌우 경계선 - 행 위에 (끊기지 않도록 z-index 높게) */}
+                      <div className={`absolute top-0 bottom-0 ${isActive ? 'bg-indigo-300' : 'bg-gray-300'} pointer-events-none`}
+                        style={{ left: sLeft, width: 2, zIndex: 5 }} />
+                      <div className={`absolute top-0 bottom-0 ${isActive ? 'bg-indigo-300' : 'bg-gray-300'} pointer-events-none`}
+                        style={{ left: sLeft + sWidth - 2, width: 2, zIndex: 5 }} />
                     </div>
                   )
                 })}
