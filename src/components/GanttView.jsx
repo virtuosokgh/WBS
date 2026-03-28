@@ -452,12 +452,9 @@ export default function GanttView({ projectId, onGoToScreen }) {
                     <div key={sprint.id + '-bg'} className="absolute top-0 bottom-0" style={{ left: sLeft, width: sWidth, zIndex: 1 }}>
                       {/* 배경 */}
                       <div className={`absolute inset-0 ${isActive ? 'bg-indigo-50/40' : 'bg-gray-50/50'}`} />
-                      {/* 좌측 경계선 - 실선 */}
-                      <div className={`absolute top-0 bottom-0 left-0 ${isActive ? 'bg-indigo-400' : 'bg-gray-300'}`} style={{ width: 2 }} />
-                      {/* 우측 경계선 - 점선 스타일 */}
-                      <div className={`absolute top-0 bottom-0 right-0 ${isActive ? 'border-indigo-300' : 'border-gray-300'}`}
-                        style={{ width: 0, borderRight: `1px dashed` }}
-                      />
+                      {/* 좌우 경계선 - 실선 2px */}
+                      <div className={`absolute top-0 bottom-0 left-0 ${isActive ? 'bg-indigo-300' : 'bg-gray-300'}`} style={{ width: 2 }} />
+                      <div className={`absolute top-0 bottom-0 right-0 ${isActive ? 'bg-indigo-300' : 'bg-gray-300'}`} style={{ width: 2 }} />
                     </div>
                   )
                 })}
