@@ -80,6 +80,10 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
       tasks.forEach(t => {
         if (t.status !== 'done') {
           addTaskToSprint(projectId, sprint.id, t.id)
+          // 스프린트에 추가된 backlog 작업은 자동으로 '할일'로 변경
+          if (t.status === 'backlog') {
+            onStatusChange?.(t.id, 'todo')
+          }
         }
       })
     }
@@ -143,6 +147,16 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
     const idSet = new Set(currentSprint.taskIds)
     return tasks.filter(t => idSet.has(t.id))
   }, [currentSprint, tasks])
+
+  // 스프린트 내 backlog 상태 작업을 자동으로 todo로 보정
+  useEffect(() => {
+    if (!currentSprint || isViewingPast) return
+    sprintTasks.forEach(t => {
+      if (t.status === 'backlog') {
+        onStatusChange?.(t.id, 'todo')
+      }
+    })
+  }, [sprintTasks, currentSprint, isViewingPast])
   const sprintDoneCount = useMemo(() => sprintTasks.filter(t => t.status === 'done').length, [sprintTasks])
 
   // Pre-build member lookup map for O(1) access
@@ -157,7 +171,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
     if (!sprintTasks.length) return []
     return SPRINT_STATUS_OPTIONS.map(status => {
       const columnTasks = sprintTasks
-        .filter(t => t.status === status.value)
+        .filter(t => (t.status === status.value) || (status.value === 'todo' && t.status === 'backlog'))
         .sort((a, b) => {
           const aName = memberMap.get(a.assignee_id)?.name || ''
           const bName = memberMap.get(b.assignee_id)?.name || ''
@@ -413,7 +427,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                               </td>
                               <td className="py-1.5 px-2 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                                 <select
-                                  value={t.status || 'todo'}
+                                  value={t.status === 'backlog' ? 'todo' : (t.status || 'todo')}
                                   onChange={e => onStatusChange?.(t.id, e.target.value)}
                                   disabled={!onStatusChange || isViewingPast}
                                   className={`text-xs px-1.5 py-0.5 rounded-full font-medium border-0 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${st.color} ${onStatusChange && !isViewingPast ? 'cursor-pointer' : 'cursor-default opacity-80'}`}
