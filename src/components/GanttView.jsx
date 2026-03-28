@@ -288,7 +288,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
 
               {/* 스프린트 라벨 행 (왼쪽 정렬용) */}
               {sprints.length > 0 && minDate && (
-                <div className="border-b border-gray-200 bg-gray-50/30 flex items-center px-3" style={{ height: 28 }}>
+                <div className="border-b border-gray-200 flex items-center px-3" style={{ height: 28 }}>
                   <span className="text-[10px] text-gray-400 font-medium">스프린트</span>
                 </div>
               )}
@@ -408,38 +408,9 @@ export default function GanttView({ projectId, onGoToScreen }) {
                 })}
               </div>
 
-              {/* 스프린트 라벨 전용 행 */}
-              {sprints.length > 0 && minDate && (
-                <div className="relative border-b border-gray-200 bg-gray-50/30" style={{ height: 28, zIndex: 0 }}>
-                  {sprints.map(sprint => {
-                    const sStart = new Date(sprint.startDate)
-                    const sEnd = new Date(sprint.endDate)
-                    sStart.setHours(0,0,0,0)
-                    sEnd.setHours(0,0,0,0)
-                    const sLeft = Math.round((sStart - minDate) / 86400000) * DAY_WIDTH
-                    const sWidth = Math.max((Math.round((sEnd - sStart) / 86400000) + 1) * DAY_WIDTH, DAY_WIDTH)
-                    const isActive = sprint.status === 'active'
-                    return (
-                      <div key={sprint.id + '-label'} className="absolute flex items-center justify-center overflow-hidden"
-                        style={{ left: sLeft + 2, width: sWidth - 4, top: 3, bottom: 3, zIndex: 1 }}>
-                        <div className={`w-full h-full flex items-center justify-center rounded-md border ${
-                          isActive
-                            ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                            : 'bg-gray-100 border-gray-300 text-gray-500'
-                        }`}>
-                          <span className="text-[10px] font-semibold whitespace-nowrap px-1.5">
-                            {sprint.name}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* 행 */}
-              <div className="relative" style={{ zIndex: 2 }}>
-                {/* 스프린트 범위 배경 - 전체 높이로 표시 */}
+              {/* 스프린트 라벨 + 작업 행 통합 컨테이너 */}
+              <div className="relative">
+                {/* 스프린트 배경 + 경계선 (라벨~행 전체 높이 관통) */}
                 {sprints.length > 0 && minDate && sprints.map(sprint => {
                   const sStart = new Date(sprint.startDate)
                   const sEnd = new Date(sprint.endDate)
@@ -450,10 +421,10 @@ export default function GanttView({ projectId, onGoToScreen }) {
                   const isActive = sprint.status === 'active'
                   return (
                     <div key={sprint.id + '-bg'}>
-                      {/* 배경 - 행 뒤에 */}
-                      <div className={`absolute top-0 bottom-0 ${isActive ? 'bg-indigo-50/40' : 'bg-gray-50/50'}`}
+                      {/* 배경 - 전체 높이 */}
+                      <div className={`absolute top-0 bottom-0 ${isActive ? 'bg-indigo-50/40' : 'bg-gray-50/40'}`}
                         style={{ left: sLeft, width: sWidth, zIndex: 0 }} />
-                      {/* 좌우 경계선 - 행 위에 (끊기지 않도록 z-index 높게) */}
+                      {/* 좌우 경계선 - 전체 높이 관통 */}
                       <div className={`absolute top-0 bottom-0 ${isActive ? 'bg-indigo-300' : 'bg-gray-300'} pointer-events-none`}
                         style={{ left: sLeft, width: 2, zIndex: 5 }} />
                       <div className={`absolute top-0 bottom-0 ${isActive ? 'bg-indigo-300' : 'bg-gray-300'} pointer-events-none`}
@@ -461,6 +432,36 @@ export default function GanttView({ projectId, onGoToScreen }) {
                     </div>
                   )
                 })}
+
+                {/* 스프린트 라벨 행 */}
+                {sprints.length > 0 && minDate && (
+                  <div className="relative border-b border-gray-200" style={{ height: 28, zIndex: 6 }}>
+                    {sprints.map(sprint => {
+                      const sStart = new Date(sprint.startDate)
+                      const sEnd = new Date(sprint.endDate)
+                      sStart.setHours(0,0,0,0)
+                      sEnd.setHours(0,0,0,0)
+                      const sLeft = Math.round((sStart - minDate) / 86400000) * DAY_WIDTH
+                      const sWidth = Math.max((Math.round((sEnd - sStart) / 86400000) + 1) * DAY_WIDTH, DAY_WIDTH)
+                      const isActive = sprint.status === 'active'
+                      return (
+                        <div key={sprint.id + '-label'} className="absolute flex items-center justify-center overflow-hidden pointer-events-none"
+                          style={{ left: sLeft + 2, width: sWidth - 4, top: 4, bottom: 4 }}>
+                          <div className={`px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${
+                            isActive
+                              ? 'bg-indigo-500 text-white'
+                              : 'bg-gray-400 text-white'
+                          }`}>
+                            {sprint.name}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* 작업 행 영역 */}
+                <div className="relative" style={{ zIndex: 2 }}>
 
                 {todayLeft !== null && todayLeft >= 0 && todayLeft <= days.length * DAY_WIDTH && (
                   <div
@@ -518,6 +519,8 @@ export default function GanttView({ projectId, onGoToScreen }) {
                     </div>
                   )
                 })}
+              </div>
+              {/* 통합 컨테이너 닫기 */}
               </div>
             </div>
           </div>
