@@ -288,7 +288,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
 
               {/* 스프린트 라벨 행 (왼쪽 정렬용) */}
               {sprints.length > 0 && minDate && (
-                <div className="border-b border-gray-100 bg-gray-50/50 flex items-center px-3" style={{ height: 24 }}>
+                <div className="border-b border-gray-200 bg-gray-50/30 flex items-center px-3" style={{ height: 28 }}>
                   <span className="text-[10px] text-gray-400 font-medium">스프린트</span>
                 </div>
               )}
@@ -410,7 +410,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
 
               {/* 스프린트 라벨 전용 행 */}
               {sprints.length > 0 && minDate && (
-                <div className="relative border-b border-gray-100" style={{ height: 24, zIndex: 0 }}>
+                <div className="relative border-b border-gray-200 bg-gray-50/30" style={{ height: 28, zIndex: 0 }}>
                   {sprints.map(sprint => {
                     const sStart = new Date(sprint.startDate)
                     const sEnd = new Date(sprint.endDate)
@@ -420,13 +420,16 @@ export default function GanttView({ projectId, onGoToScreen }) {
                     const sWidth = Math.max((Math.round((sEnd - sStart) / 86400000) + 1) * DAY_WIDTH, DAY_WIDTH)
                     const isActive = sprint.status === 'active'
                     return (
-                      <div key={sprint.id + '-label'} className={`absolute top-0 bottom-0 flex items-center justify-center overflow-hidden ${
-                        isActive ? 'bg-indigo-100/80' : 'bg-gray-100/60'
-                      }`} style={{ left: sLeft, width: sWidth, zIndex: 1 }}>
-                        <div className={`px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
-                          isActive ? 'text-indigo-700' : 'text-gray-500'
+                      <div key={sprint.id + '-label'} className="absolute flex items-center justify-center overflow-hidden"
+                        style={{ left: sLeft + 2, width: sWidth - 4, top: 3, bottom: 3, zIndex: 1 }}>
+                        <div className={`w-full h-full flex items-center justify-center rounded-md border ${
+                          isActive
+                            ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                            : 'bg-gray-100 border-gray-300 text-gray-500'
                         }`}>
-                          {sprint.name} ({formatDate(sprint.startDate)} ~ {formatDate(sprint.endDate)})
+                          <span className="text-[10px] font-semibold whitespace-nowrap px-1.5">
+                            {sprint.name}
+                          </span>
                         </div>
                       </div>
                     )
@@ -448,10 +451,13 @@ export default function GanttView({ projectId, onGoToScreen }) {
                   return (
                     <div key={sprint.id + '-bg'} className="absolute top-0 bottom-0" style={{ left: sLeft, width: sWidth, zIndex: 1 }}>
                       {/* 배경 */}
-                      <div className={`absolute inset-0 ${isActive ? 'bg-indigo-50/60' : 'bg-gray-100/40'}`} />
-                      {/* 좌우 경계선 */}
-                      <div className={`absolute top-0 bottom-0 left-0 w-px ${isActive ? 'bg-indigo-300' : 'bg-gray-300'}`} style={{ opacity: 0.7 }} />
-                      <div className={`absolute top-0 bottom-0 right-0 w-px ${isActive ? 'bg-indigo-300' : 'bg-gray-300'}`} style={{ opacity: 0.7 }} />
+                      <div className={`absolute inset-0 ${isActive ? 'bg-indigo-50/40' : 'bg-gray-50/50'}`} />
+                      {/* 좌측 경계선 - 실선 */}
+                      <div className={`absolute top-0 bottom-0 left-0 ${isActive ? 'bg-indigo-400' : 'bg-gray-300'}`} style={{ width: 2 }} />
+                      {/* 우측 경계선 - 점선 스타일 */}
+                      <div className={`absolute top-0 bottom-0 right-0 ${isActive ? 'border-indigo-300' : 'border-gray-300'}`}
+                        style={{ width: 0, borderRight: `1px dashed` }}
+                      />
                     </div>
                   )
                 })}
