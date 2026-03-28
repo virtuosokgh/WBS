@@ -26,7 +26,7 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
   const [sprintViewMode, setSprintViewMode] = useState('list')
 
   // Filter state
-  const [filterStatus, setFilterStatus] = useState('')
+  const [filterStatus, setFilterStatus] = useState('backlog')
   const [filterAssignee, setFilterAssignee] = useState('')
 
   const handleSprintChange = useCallback((sprint) => {
@@ -151,7 +151,7 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
       displayTasks: filtered,
       rootTasks: roots,
       childMap: children,
-      activeFilterCount: [filterStatus, filterAssignee].filter(Boolean).length,
+      activeFilterCount: [filterStatus && filterStatus !== 'backlog' ? filterStatus : '', filterAssignee].filter(Boolean).length,
     }
   }, [tasks, activeSprintTaskIds, isViewingPastSprint, viewingSprint, filterStatus, filterAssignee])
 
@@ -204,9 +204,8 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
             }`}
           >
             <option value="">상태: 전체</option>
-            {STATUS_OPTIONS.map(s => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
+            <option value="backlog">대기</option>
+            <option value="done">완료</option>
           </select>
           <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
@@ -230,7 +229,7 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
 
         {activeFilterCount > 0 && (
           <button
-            onClick={() => { setFilterStatus(''); setFilterAssignee('') }}
+            onClick={() => { setFilterStatus('backlog'); setFilterAssignee('') }}
             className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 border border-gray-200"
           >
             <X size={11} />
@@ -257,7 +256,7 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
             </button>
           )}
           {activeFilterCount > 0 && (
-            <button onClick={() => { setFilterStatus(''); setFilterAssignee('') }} className="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+            <button onClick={() => { setFilterStatus('backlog'); setFilterAssignee('') }} className="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
               필터 초기화
             </button>
           )}
@@ -378,9 +377,15 @@ function TaskRow({ task, index, depth, childMap, collapsed, members, onToggle, o
         </td>
         <td className="py-2 px-3 whitespace-nowrap">
           {isBacklog ? (
-            <span className={`text-xs px-2 py-1 rounded-full font-medium ${BACKLOG_STATUS.color}`}>
-              {BACKLOG_STATUS.label}
-            </span>
+            task.status === 'done' ? (
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusInfo('done').color}`}>
+                완료
+              </span>
+            ) : (
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${BACKLOG_STATUS.color}`}>
+                {BACKLOG_STATUS.label}
+              </span>
+            )
           ) : (
             <select
               value={task.status || 'todo'}
