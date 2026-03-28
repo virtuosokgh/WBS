@@ -464,8 +464,8 @@ export default function GanttView({ projectId, onGoToScreen }) {
 
                 {todayLeft !== null && todayLeft >= 0 && todayLeft <= days.length * DAY_WIDTH && (
                   <div
-                    className="absolute top-0 bottom-0 w-px bg-indigo-500 z-10 opacity-50"
-                    style={{ left: todayLeft + DAY_WIDTH / 2 }}
+                    className="absolute top-0 bottom-0 bg-red-100/60 pointer-events-none"
+                    style={{ left: todayLeft, width: DAY_WIDTH, zIndex: 4 }}
                   />
                 )}
                 {days.map((d, i) => {
