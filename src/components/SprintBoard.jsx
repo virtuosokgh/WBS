@@ -602,6 +602,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
       {showCreateModal && (
         <SprintCreateModal
           projectId={projectId}
+          sprints={sprints}
           onClose={() => setShowCreateModal(false)}
           onCreate={handleCreate}
         />
@@ -619,6 +620,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
       {showEditModal && currentSprint && (
         <SprintEditModal
           sprint={currentSprint}
+          sprints={sprints}
           projectId={projectId}
           onClose={() => setShowEditModal(false)}
           onSave={(formData) => {
@@ -645,8 +647,26 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   )
 }
 
+/* -- 스프린트 기간 중복 검증 -- */
+function checkSprintOverlap(startDate, endDate, existingSprints, excludeId = null) {
+  if (!startDate || !endDate) return null
+  const newStart = new Date(startDate)
+  const newEnd = new Date(endDate)
+  for (const s of existingSprints) {
+    if (excludeId && s.id === excludeId) continue
+    if (!s.startDate || !s.endDate) continue
+    const sStart = new Date(s.startDate)
+    const sEnd = new Date(s.endDate)
+    // 두 기간이 겹치는 경우: newStart <= sEnd && newEnd >= sStart
+    if (newStart <= sEnd && newEnd >= sStart) {
+      return s.name
+    }
+  }
+  return null
+}
+
 /* -- Sprint Creation Modal -- */
-function SprintCreateModal({ projectId, onClose, onCreate }) {
+function SprintCreateModal({ projectId, sprints, onClose, onCreate }) {
   const nextNumber = getNextSprintNumber(projectId)
   const [form, setForm] = useState({
     name: `스프린트 ${nextNumber}`,
@@ -666,6 +686,10 @@ function SprintCreateModal({ projectId, onClose, onCreate }) {
     if (!form.endDate) e.endDate = '종료일을 입력해주세요.'
     if (form.startDate && form.endDate && form.endDate < form.startDate) {
       e.endDate = '종료일은 시작일 이후여야 합니다.'
+    }
+    if (form.startDate && form.endDate) {
+      const overlap = checkSprintOverlap(form.startDate, form.endDate, sprints)
+      if (overlap) e.overlap = `"${overlap}"과(와) 기간이 겹칩니다.`
     }
     return e
   }
@@ -694,7 +718,7 @@ function SprintCreateModal({ projectId, onClose, onCreate }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">시작일 <span className="text-red-500">*</span></label>
             <input
               type="date" value={form.startDate}
-              onChange={e => { setForm(f => ({ ...f, startDate: e.target.value })); setErrors(er => ({ ...er, startDate: '' })) }}
+              onChange={e => { setForm(f => ({ ...f, startDate: e.target.value })); setErrors(er => ({ ...er, startDate: '', overlap: '' })) }}
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${errors.startDate ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'}`}
             />
             {errors.startDate && <p className="mt-1 text-xs text-red-500">{errors.startDate}</p>}
@@ -703,12 +727,18 @@ function SprintCreateModal({ projectId, onClose, onCreate }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">종료일 <span className="text-red-500">*</span></label>
             <input
               type="date" value={form.endDate}
-              onChange={e => { setForm(f => ({ ...f, endDate: e.target.value })); setErrors(er => ({ ...er, endDate: '' })) }}
+              onChange={e => { setForm(f => ({ ...f, endDate: e.target.value })); setErrors(er => ({ ...er, endDate: '', overlap: '' })) }}
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${errors.endDate ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'}`}
             />
             {errors.endDate && <p className="mt-1 text-xs text-red-500">{errors.endDate}</p>}
           </div>
         </div>
+        {errors.overlap && (
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg">
+            <span className="text-red-500 text-sm">&#9888;</span>
+            <p className="text-sm text-red-600 font-medium">{errors.overlap}</p>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">스프린트 목표 (선택)</label>
           <textarea
@@ -725,7 +755,7 @@ function SprintCreateModal({ projectId, onClose, onCreate }) {
 }
 
 /* -- Sprint Edit Modal -- */
-function SprintEditModal({ sprint, onClose, onSave }) {
+function SprintEditModal({ sprint, sprints, onClose, onSave }) {
   const [form, setForm] = useState({
     name: sprint.name || '',
     startDate: sprint.startDate || '',
@@ -740,6 +770,10 @@ function SprintEditModal({ sprint, onClose, onSave }) {
     if (!form.endDate) e.endDate = '종료일을 입력해주세요.'
     if (form.startDate && form.endDate && form.endDate < form.startDate) {
       e.endDate = '종료일은 시작일 이후여야 합니다.'
+    }
+    if (form.startDate && form.endDate) {
+      const overlap = checkSprintOverlap(form.startDate, form.endDate, sprints, sprint.id)
+      if (overlap) e.overlap = `"${overlap}"과(와) 기간이 겹칩니다.`
     }
     return e
   }
@@ -768,7 +802,7 @@ function SprintEditModal({ sprint, onClose, onSave }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">시작일 <span className="text-red-500">*</span></label>
             <input
               type="date" value={form.startDate}
-              onChange={e => { setForm(f => ({ ...f, startDate: e.target.value })); setErrors(er => ({ ...er, startDate: '' })) }}
+              onChange={e => { setForm(f => ({ ...f, startDate: e.target.value })); setErrors(er => ({ ...er, startDate: '', overlap: '' })) }}
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${errors.startDate ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'}`}
             />
             {errors.startDate && <p className="mt-1 text-xs text-red-500">{errors.startDate}</p>}
@@ -777,12 +811,18 @@ function SprintEditModal({ sprint, onClose, onSave }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">종료일 <span className="text-red-500">*</span></label>
             <input
               type="date" value={form.endDate}
-              onChange={e => { setForm(f => ({ ...f, endDate: e.target.value })); setErrors(er => ({ ...er, endDate: '' })) }}
+              onChange={e => { setForm(f => ({ ...f, endDate: e.target.value })); setErrors(er => ({ ...er, endDate: '', overlap: '' })) }}
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${errors.endDate ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-indigo-500'}`}
             />
             {errors.endDate && <p className="mt-1 text-xs text-red-500">{errors.endDate}</p>}
           </div>
         </div>
+        {errors.overlap && (
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg">
+            <span className="text-red-500 text-sm">&#9888;</span>
+            <p className="text-sm text-red-600 font-medium">{errors.overlap}</p>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">스프린트 목표 (선택)</label>
           <textarea
