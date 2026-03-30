@@ -89,6 +89,8 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
       })
     }
     setShowCreateModal(false)
+    // 새 스프린트로 자동 전환
+    setViewingSprint(sprint)
     refresh()
   }
 
@@ -282,7 +284,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
 
                   <SprintStatusBadge status={currentSprint.status} />
 
-                  {canEdit && !isViewingPast ? (
+                  {canEdit ? (
                     <button
                       onClick={() => setShowEditModal(true)}
                       className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-md transition-colors"

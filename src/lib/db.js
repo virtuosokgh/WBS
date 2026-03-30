@@ -287,9 +287,9 @@ export async function updateTask(id, task) {
     end_date: task.endDate || null,
     note: task.note || '',
   }
-  const { error } = await supabase.from('tasks').update(updates).eq('id', id)
+  const { data, error } = await supabase.from('tasks').update(updates).eq('id', id).select().single()
   if (error) return { data: null, error }
-  return { data: { id, ...updates }, error: null }
+  return { data, error: null }
 }
 
 export async function deleteTask(id) {
