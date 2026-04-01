@@ -351,19 +351,6 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
               </span>
             )}
           </div>
-          {canEdit && (
-            <button
-              onClick={handleSave}
-              disabled={!isDirty}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                isDirty
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              저장
-            </button>
-          )}
         </div>
 
         {isEditingTitle ? (
@@ -467,6 +454,27 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
           data-placeholder="회의 내용을 작성하세요..."
           style={{ whiteSpace: 'pre-wrap' }}
         />
+        {canEdit && (
+          <div className="flex items-center justify-end gap-2 mt-3">
+            {isDirty && <span className="text-xs text-gray-400">Ctrl+S</span>}
+            {saved && (
+              <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                <Check size={12} /> 저장됨
+              </span>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={!isDirty}
+              className={`flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+                isDirty
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              저장
+            </button>
+          </div>
+        )}
         <style>{`
           [data-placeholder]:empty::before {
             content: attr(data-placeholder);
