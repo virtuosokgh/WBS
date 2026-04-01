@@ -15,6 +15,7 @@ export default function MeetingNotes({ projectId, canEdit }) {
   const [expandedSprints, setExpandedSprints] = useState({})
   const [selectedMeeting, setSelectedMeeting] = useState(null)
   const [meetingsMap, setMeetingsMap] = useState({}) // sprintId -> meetings[]
+  const [drafts, setDrafts] = useState({}) // meetingId -> unsaved content
 
   // Load sprints
   useEffect(() => {
@@ -136,6 +137,7 @@ export default function MeetingNotes({ projectId, canEdit }) {
                       .map(meeting => {
                         const typeInfo = MEETING_TYPE_INFO[meeting.type] || MEETING_TYPE_INFO.custom
                         const isSelected = selectedMeeting?.id === meeting.id
+                        const hasDraft = drafts[meeting.id] !== undefined
                         return (
                           <div
                             key={meeting.id}
@@ -151,6 +153,7 @@ export default function MeetingNotes({ projectId, canEdit }) {
                               <span className={`text-xs truncate ${isSelected ? 'font-medium text-indigo-700' : 'text-gray-600'}`}>
                                 {meeting.title}
                               </span>
+                              {hasDraft && <span className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0" title="저장하지 않은 변경사항" />}
                             </button>
                             {canEdit && meeting.type === 'custom' && (
                               <button
@@ -197,6 +200,15 @@ export default function MeetingNotes({ projectId, canEdit }) {
             meeting={selectedMeeting}
             canEdit={canEdit}
             onSave={(updates) => handleSaveMeeting(selectedMeeting.id, updates)}
+            drafts={drafts}
+            onDraftChange={(meetingId, content) => {
+              setDrafts(prev => {
+                const next = { ...prev }
+                if (content === undefined) delete next[meetingId]
+                else next[meetingId] = content
+                return next
+              })
+            }}
           />
         )}
       </div>
@@ -241,40 +253,57 @@ function TablePicker({ onInsert, onClose }) {
   )
 }
 
-function MeetingEditor({ meeting, canEdit, onSave }) {
+function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
   const [title, setTitle] = useState(meeting.title)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [showTablePicker, setShowTablePicker] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+  const [saved, setSaved] = useState(false)
   const editorRef = useRef(null)
   const initializedRef = useRef(false)
   const composingRef = useRef(false)
-  const autoSaveTimer = useRef(null)
   const typeInfo = MEETING_TYPE_INFO[meeting.type] || MEETING_TYPE_INFO.custom
 
-  // Initialize editor content once
-  useEffect(() => {
-    if (editorRef.current && !initializedRef.current) {
-      editorRef.current.innerHTML = meeting.content || ''
-      initializedRef.current = true
-    }
-  }, [meeting.id])
+  // 드래프트가 있으면 드래프트 사용, 없으면 저장된 content 사용
+  const initialContent = drafts[meeting.id] ?? meeting.content ?? ''
 
   // Reset when meeting changes
   useEffect(() => {
     initializedRef.current = false
     setTitle(meeting.title)
     setIsEditingTitle(false)
+    setSaved(false)
+    const content = drafts[meeting.id] ?? meeting.content ?? ''
+    setIsDirty(drafts[meeting.id] !== undefined)
     if (editorRef.current) {
-      editorRef.current.innerHTML = meeting.content || ''
+      editorRef.current.innerHTML = content
       initializedRef.current = true
     }
   }, [meeting.id])
 
-  function scheduleAutoSave() {
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
-    autoSaveTimer.current = setTimeout(() => {
-      onSave({ content: editorRef.current?.innerHTML || '' })
-    }, 1000)
+  // Initialize editor content once
+  useEffect(() => {
+    if (editorRef.current && !initializedRef.current) {
+      editorRef.current.innerHTML = initialContent
+      initializedRef.current = true
+    }
+  }, [])
+
+  function markDirty() {
+    setIsDirty(true)
+    setSaved(false)
+    // 드래프트에 현재 내용 저장 (메모리에만, localStorage 아님)
+    onDraftChange(meeting.id, editorRef.current?.innerHTML || '')
+  }
+
+  function handleSave() {
+    const content = editorRef.current?.innerHTML || ''
+    onSave({ content })
+    setIsDirty(false)
+    setSaved(true)
+    // 저장 후 드래프트 제거
+    onDraftChange(meeting.id, undefined)
+    setTimeout(() => setSaved(false), 2000)
   }
 
   function handleTitleSave() {
@@ -287,19 +316,54 @@ function MeetingEditor({ meeting, canEdit, onSave }) {
   function execCmd(cmd, val = null) {
     document.execCommand(cmd, false, val)
     editorRef.current?.focus()
-    scheduleAutoSave()
+    markDirty()
   }
+
+  // Ctrl+S 저장 단축키
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        if (isDirty && canEdit) handleSave()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isDirty, canEdit])
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center gap-2 mb-1">
-          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${typeInfo.color}`}>
-            <typeInfo.icon size={10} />
-            {typeInfo.label}
-          </span>
-          <span className="text-xs text-gray-400">{meeting.sprintName}</span>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${typeInfo.color}`}>
+              <typeInfo.icon size={10} />
+              {typeInfo.label}
+            </span>
+            <span className="text-xs text-gray-400">{meeting.sprintName}</span>
+            {isDirty && (
+              <span className="text-[10px] text-orange-500 font-medium px-1.5 py-0.5 bg-orange-50 rounded">저장하지 않은 변경사항</span>
+            )}
+            {saved && (
+              <span className="text-[10px] text-green-600 font-medium px-1.5 py-0.5 bg-green-50 rounded flex items-center gap-1">
+                <Check size={10} /> 저장됨
+              </span>
+            )}
+          </div>
+          {canEdit && (
+            <button
+              onClick={handleSave}
+              disabled={!isDirty}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                isDirty
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              저장
+            </button>
+          )}
         </div>
 
         {isEditingTitle ? (
@@ -328,6 +392,7 @@ function MeetingEditor({ meeting, canEdit, onSave }) {
 
         <div className="text-xs text-gray-400 mt-1">
           마지막 수정: {new Date(meeting.updatedAt).toLocaleString('ko-KR')}
+          {isDirty && <span className="ml-2 text-orange-400">· Ctrl+S로 저장</span>}
         </div>
       </div>
 
@@ -377,7 +442,7 @@ function MeetingEditor({ meeting, canEdit, onSave }) {
                       sel.addRange(range)
                     }
                     document.execCommand('insertHTML', false, buildTableHTML(rows, cols))
-                    scheduleAutoSave()
+                    markDirty()
                   }}
                   onClose={() => setShowTablePicker(false)}
                 />
@@ -391,12 +456,14 @@ function MeetingEditor({ meeting, canEdit, onSave }) {
       <div className="flex-1 overflow-y-auto px-6 py-4 bg-gray-50/50">
         <div
           ref={editorRef}
-          className={`min-h-[400px] text-sm text-gray-700 leading-relaxed focus:outline-none bg-white border border-gray-200 rounded-lg px-5 py-4 shadow-sm ${canEdit ? 'focus-within:border-indigo-300 focus-within:ring-2 focus-within:ring-indigo-100' : 'pointer-events-none opacity-80'}`}
+          className={`min-h-[400px] text-sm text-gray-700 leading-relaxed focus:outline-none bg-white border rounded-lg px-5 py-4 shadow-sm ${
+            isDirty ? 'border-orange-300' : 'border-gray-200'
+          } ${canEdit ? '' : 'pointer-events-none opacity-80'}`}
           contentEditable={canEdit}
           suppressContentEditableWarning
           onCompositionStart={() => { composingRef.current = true }}
-          onCompositionEnd={() => { composingRef.current = false; scheduleAutoSave() }}
-          onInput={() => { if (!composingRef.current) scheduleAutoSave() }}
+          onCompositionEnd={() => { composingRef.current = false; markDirty() }}
+          onInput={() => { if (!composingRef.current) markDirty() }}
           data-placeholder="회의 내용을 작성하세요..."
           style={{ whiteSpace: 'pre-wrap' }}
         />
