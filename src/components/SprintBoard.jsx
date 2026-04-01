@@ -60,7 +60,11 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
         const found = all.find(s => s.id === prev.id)
         if (found) return found
       }
-      return active
+      // 활성 스프린트가 없으면 가장 최근 완료 스프린트 표시
+      if (active) return active
+      const completed = all.filter(s => s.status === 'completed')
+      if (completed.length > 0) return completed[completed.length - 1]
+      return null
     })
   }, [projectId])
 
@@ -111,8 +115,8 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   }
 
   function handleRemoveTask(taskId) {
-    if (!activeSprint) return
-    removeTaskFromSprint(projectId, activeSprint.id, taskId)
+    if (!currentSprint) return
+    removeTaskFromSprint(projectId, currentSprint.id, taskId)
     // 스프린트에서 제거 시 상태를 '대기'(backlog)로 변경
     onStatusChange?.(taskId, 'backlog')
     refresh()
@@ -133,8 +137,8 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
     e.preventDefault()
     setDragOver(false)
     const taskId = e.dataTransfer.getData('text/task-id')
-    if (taskId && activeSprint) {
-      addTaskToSprint(projectId, activeSprint.id, taskId)
+    if (taskId && currentSprint) {
+      addTaskToSprint(projectId, currentSprint.id, taskId)
       // 스프린트에 추가 시 상태를 '할일'(todo)로 변경
       onStatusChange?.(taskId, 'todo')
       refresh()
@@ -206,13 +210,13 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
           className={`border rounded-lg bg-white transition-colors ${
             dragOver ? 'border-indigo-400 bg-indigo-50/30' : 'border-gray-200'
           }`}
-          onDragOver={currentSprint && !isViewingPast ? handleDragOver : undefined}
+          onDragOver={currentSprint && canEdit ? handleDragOver : undefined}
           onDragLeave={handleDragLeave}
-          onDrop={currentSprint && !isViewingPast ? handleDrop : undefined}
+          onDrop={currentSprint && canEdit ? handleDrop : undefined}
         >
           {!currentSprint ? (
             <div className="flex items-center justify-between px-4 py-3">
-              <p className="text-sm text-gray-500">활성 스프린트가 없습니다.</p>
+              <p className="text-sm text-gray-500">스프린트가 없습니다.</p>
               {canEdit && (
                 <button
                   onClick={() => setShowCreateModal(true)}
@@ -339,16 +343,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                       현재 스프린트
                     </button>
                   )}
-                  {isViewingPast && !activeSprint && canEdit && (
-                    <button
-                      onClick={() => setShowCreateModal(true)}
-                      className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded hover:bg-indigo-50"
-                    >
-                      <Plus size={12} />
-                      새 스프린트
-                    </button>
-                  )}
-                  {!isViewingPast && canEdit && activeSprint && (
+                  {canEdit && activeSprint && currentSprint?.id === activeSprint?.id && (
                     <button
                       onClick={() => setShowCompleteConfirm(true)}
                       className="flex items-center gap-1 text-xs text-green-600 hover:text-green-800 font-medium px-2 py-1 rounded hover:bg-green-50"
@@ -357,13 +352,13 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                       스프린트 완료
                     </button>
                   )}
-                  {!activeSprint && !isViewingPast && canEdit && (
+                  {!activeSprint && canEdit && (
                     <button
                       onClick={() => setShowCreateModal(true)}
                       className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded hover:bg-indigo-50"
                     >
                       <Play size={12} />
-                      스프린트 시작
+                      새 스프린트
                     </button>
                   )}
                 </div>
@@ -408,7 +403,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                           <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 80 }}>시작일</th>
                           <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 80 }}>종료일</th>
                           <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 50 }}>D-Day</th>
-                          {canEdit && !isViewingPast && <th className="py-1.5 px-2" style={{ width: 30 }}></th>}
+                          {canEdit && <th className="py-1.5 px-2" style={{ width: 30 }}></th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -443,8 +438,8 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                                 <select
                                   value={t.status === 'backlog' ? 'todo' : (t.status || 'todo')}
                                   onChange={e => onStatusChange?.(t.id, e.target.value)}
-                                  disabled={!onStatusChange || isViewingPast}
-                                  className={`text-xs px-1.5 py-0.5 rounded-full font-medium border-0 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${st.color} ${onStatusChange && !isViewingPast ? 'cursor-pointer' : 'cursor-default opacity-80'}`}
+                                  disabled={!onStatusChange}
+                                  className={`text-xs px-1.5 py-0.5 rounded-full font-medium border-0 focus:outline-none focus:ring-1 focus:ring-indigo-400 ${st.color} ${onStatusChange ? 'cursor-pointer' : 'cursor-default opacity-80'}`}
                                 >
                                   {SPRINT_STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                                 </select>
@@ -466,7 +461,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                                 )}
                                 {t.status === 'done' && <span className="text-green-500">✓</span>}
                               </td>
-                              {canEdit && !isViewingPast && (
+                              {canEdit && (
                                 <td className="py-1.5 px-2" onClick={e => e.stopPropagation()}>
                                   <button
                                     onClick={() => handleRemoveTask(t.id)}
@@ -563,7 +558,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                                   )}
 
                                   {/* Remove button */}
-                                  {canEdit && !isViewingPast && (
+                                  {canEdit && (
                                     <button
                                       onClick={e => { e.stopPropagation(); handleRemoveTask(t.id) }}
                                       className="absolute top-1.5 right-1.5 opacity-0 group-hover/card:opacity-100 p-0.5 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-all"
@@ -584,7 +579,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
               )}
 
               {/* Drop hint when empty */}
-              {sprintTasks.length === 0 && !isViewingPast && (
+              {sprintTasks.length === 0 && canEdit && (
                 <div className="mt-3 border-2 border-dashed border-gray-200 rounded-lg py-4 text-center text-xs text-gray-400">
                   아래 작업 목록에서 작업을 드래그하여 스프린트에 추가하세요
                 </div>

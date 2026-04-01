@@ -169,8 +169,8 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
         tasks={tasks}
         onSprintChange={handleSprintChange}
         members={members}
-        onEditTask={canEdit && !isViewingPastSprint ? openEdit : undefined}
-        onStatusChange={canEdit && !isViewingPastSprint ? handleStatusChange : undefined}
+        onEditTask={canEdit ? openEdit : undefined}
+        onStatusChange={canEdit ? handleStatusChange : undefined}
         onViewModeChange={setSprintViewMode}
       />
 
@@ -179,10 +179,10 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
         <h3 className="font-semibold text-gray-900">
           작업 목록 ({displayTasks.length}개)
           {isViewingPastSprint && (
-            <span className="text-xs text-gray-400 font-normal ml-2">읽기 전용</span>
+            <span className="text-xs text-gray-400 font-normal ml-2">완료된 스프린트</span>
           )}
         </h3>
-        {canEdit && !isViewingPastSprint && (
+        {canEdit && (
           <button
             onClick={() => openCreate(null)}
             className="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
@@ -245,12 +245,12 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
         <div className="text-center py-16 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
           <Plus size={32} className="mx-auto mb-2 opacity-30" />
           <p className="text-sm">
-            {isViewingPastSprint ? '이 스프린트에 작업이 없습니다' :
+            {isViewingPastSprint ? '완료된 스프린트에 작업이 없습니다' :
              activeFilterCount > 0 ? '조건에 맞는 작업이 없습니다' :
              activeSprintTaskIds.size > 0 ? '스프린트에 포함되지 않은 작업이 없습니다' :
              '작업이 없습니다'}
           </p>
-          {canEdit && !isViewingPastSprint && activeFilterCount === 0 && (
+          {canEdit && activeFilterCount === 0 && (
             <button onClick={() => openCreate(null)} className="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">
               첫 번째 작업 추가하기
             </button>
@@ -288,10 +288,10 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
                   collapsed={collapsed}
                   members={members}
                   onToggle={id => setCollapsed(c => ({ ...c, [id]: !c[id] }))}
-                  onEdit={canEdit && !isViewingPastSprint ? openEdit : null}
-                  onDelete={canEdit && !isViewingPastSprint ? handleDelete : null}
-                  onStatusChange={canEdit && !isViewingPastSprint ? handleStatusChange : null}
-                  onAddChild={canEdit && !isViewingPastSprint ? openCreate : null}
+                  onEdit={canEdit ? openEdit : null}
+                  onDelete={canEdit ? handleDelete : null}
+                  onStatusChange={canEdit ? handleStatusChange : null}
+                  onAddChild={canEdit ? openCreate : null}
                   isBacklog={!isViewingPastSprint && !activeSprintTaskIds.has(task.id)}
                 />
               ))}
