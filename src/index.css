@@ -140,9 +140,46 @@
   margin: 8px 0;
   cursor: default;
 }
-.rich-editor-body a {
+.rich-editor-body a,
+[contenteditable] a {
   color: #6366f1;
   text-decoration: underline;
+}
+
+/* Heading & list styles for all contenteditable areas (meeting notes etc.) */
+[contenteditable] h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 10px 0 6px;
+}
+[contenteditable] h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 8px 0 4px;
+}
+[contenteditable] h4 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 6px 0 3px;
+}
+[contenteditable] ul,
+[contenteditable] ol {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+[contenteditable] ul { list-style: disc; }
+[contenteditable] ol { list-style: decimal; }
+[contenteditable] blockquote {
+  border-left: 3px solid #6366f1;
+  padding-left: 12px;
+  margin: 8px 0;
+  color: #6b7280;
+  font-style: italic;
+}
+[contenteditable] hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 12px 0;
 }
 
 /* Table styles for rich editor & meeting notes */

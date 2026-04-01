@@ -60,9 +60,23 @@ function RichEditor({ value, onChange }) {
     }
   }, [value])
 
+  function ensureFocus() {
+    const el = editorRef.current
+    if (!el) return
+    el.focus()
+    const sel = window.getSelection()
+    if (!sel.rangeCount || !el.contains(sel.anchorNode)) {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      range.collapse(false)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    }
+  }
+
   const execCmd = useCallback((cmd, val = null) => {
+    ensureFocus()
     document.execCommand(cmd, false, val)
-    editorRef.current?.focus()
     onChange(editorRef.current?.innerHTML || '')
   }, [onChange])
 
@@ -151,13 +165,13 @@ function RichEditor({ value, onChange }) {
         <TB icon="<u>U</u>" cmd="underline" title="밑줄 (Ctrl+U)" />
         <TB icon="<s>S</s>" cmd="strikeThrough" title="취소선" />
         <span className="rich-tb-sep" />
-        <TB icon="H1" cmd="formatBlock" val="h3" title="제목" />
-        <TB icon="H2" cmd="formatBlock" val="h4" title="소제목" />
+        <TB icon="H1" cmd="formatBlock" val="<h3>" title="제목" />
+        <TB icon="H2" cmd="formatBlock" val="<h4>" title="소제목" />
         <span className="rich-tb-sep" />
         <TB icon="&bull;" cmd="insertUnorderedList" title="글머리 기호" />
         <TB icon="1." cmd="insertOrderedList" title="번호 매기기" />
         <span className="rich-tb-sep" />
-        <TB icon="&ldquo;" cmd="formatBlock" val="blockquote" title="인용" />
+        <TB icon="&ldquo;" cmd="formatBlock" val="<blockquote>" title="인용" />
         <TB icon="&mdash;" cmd="insertHorizontalRule" title="구분선" />
         <span className="rich-tb-sep" />
         <div className="relative">

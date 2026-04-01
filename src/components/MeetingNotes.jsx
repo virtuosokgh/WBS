@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { ChevronDown, ChevronRight, Plus, Trash2, FileText, Target, ClipboardList, RefreshCw, X, Pencil, Check } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, Trash2, FileText, Target, ClipboardList, RefreshCw, X, Pencil, Check, Paperclip } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 import { getSprints } from '../lib/sprints'
 import { getMeetingsBySprintId, ensureDefaultMeetings, createMeeting, updateMeeting, deleteMeeting } from '../lib/meetings'
 import { formatDate } from '../utils/helpers'
@@ -259,9 +260,12 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
   const [showTablePicker, setShowTablePicker] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const editorRef = useRef(null)
+  const fileInputRef = useRef(null)
   const initializedRef = useRef(false)
   const composingRef = useRef(false)
+  const savedSelectionRef = useRef(null)
   const typeInfo = MEETING_TYPE_INFO[meeting.type] || MEETING_TYPE_INFO.custom
 
   // 드래프트가 있으면 드래프트 사용, 없으면 저장된 content 사용
@@ -289,10 +293,41 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
     }
   }, [])
 
+  // 에디터 포커스 & 셀렉션 보장
+  function ensureFocus() {
+    const el = editorRef.current
+    if (!el) return
+    el.focus()
+    const sel = window.getSelection()
+    if (!sel.rangeCount || !el.contains(sel.anchorNode)) {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      range.collapse(false)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    }
+  }
+
+  // 셀렉션 저장/복원 (파일 다이얼로그 등에서 포커스 잃을 때)
+  function saveSelection() {
+    const sel = window.getSelection()
+    if (sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
+      savedSelectionRef.current = sel.getRangeAt(0).cloneRange()
+    }
+  }
+  function restoreSelection() {
+    if (savedSelectionRef.current) {
+      const sel = window.getSelection()
+      sel.removeAllRanges()
+      sel.addRange(savedSelectionRef.current)
+    } else {
+      ensureFocus()
+    }
+  }
+
   function markDirty() {
     setIsDirty(true)
     setSaved(false)
-    // 드래프트에 현재 내용 저장 (메모리에만, localStorage 아님)
     onDraftChange(meeting.id, editorRef.current?.innerHTML || '')
   }
 
@@ -301,7 +336,6 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
     onSave({ content })
     setIsDirty(false)
     setSaved(true)
-    // 저장 후 드래프트 제거
     onDraftChange(meeting.id, undefined)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -314,9 +348,54 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
   }
 
   function execCmd(cmd, val = null) {
+    ensureFocus()
     document.execCommand(cmd, false, val)
-    editorRef.current?.focus()
     markDirty()
+  }
+
+  // 파일 업로드 처리
+  async function handleFileUpload(file) {
+    if (!file) return
+    const maxSize = file.type.startsWith('image/') ? 5 * 1024 * 1024 : 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      alert(`파일은 ${file.type.startsWith('image/') ? '5' : '10'}MB 이하만 업로드할 수 있습니다.`)
+      return
+    }
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const safeName = `meeting-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`
+      const bucket = file.type.startsWith('image/') ? 'task-images' : 'task-images'
+      const { error } = await supabase.storage.from(bucket).upload(safeName, file)
+      restoreSelection()
+      if (!error) {
+        const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(safeName)
+        if (file.type.startsWith('image/')) {
+          document.execCommand('insertHTML', false, `<img src="${urlData.publicUrl}" alt="${file.name}" style="max-width:100%;border-radius:6px;margin:8px 0;" />`)
+        } else {
+          document.execCommand('insertHTML', false, `<a href="${urlData.publicUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#4f46e5;text-decoration:none;margin:2px 0;">&#128206; ${file.name}</a>&nbsp;`)
+        }
+      } else {
+        // Supabase 실패 시 이미지는 base64 fallback
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader()
+          reader.onload = (ev) => {
+            restoreSelection()
+            document.execCommand('insertHTML', false, `<img src="${ev.target.result}" alt="${file.name}" style="max-width:100%;border-radius:6px;margin:8px 0;" />`)
+            markDirty()
+          }
+          reader.readAsDataURL(file)
+          setUploading(false)
+          return
+        } else {
+          alert('파일 업로드에 실패했습니다.')
+        }
+      }
+      markDirty()
+    } catch {
+      alert('파일 업로드에 실패했습니다.')
+    }
+    setUploading(false)
   }
 
   // Ctrl+S 저장 단축키
@@ -385,7 +464,7 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
 
       {/* Toolbar */}
       {canEdit && (
-        <div className="flex items-center gap-0.5 px-6 py-1.5 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex items-center gap-0.5 px-6 py-1.5 border-b border-gray-100 bg-gray-50/50 flex-wrap">
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('bold') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="굵게">B</button>
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('italic') }}
@@ -395,17 +474,17 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('strikeThrough') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs line-through" title="취소선">S</button>
           <div className="w-px h-4 bg-gray-300 mx-1" />
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', '<h2>') }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="제목">H2</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', '<h3>') }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="소제목">H3</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', '<p>') }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="본문">P</button>
+          <div className="w-px h-4 bg-gray-300 mx-1" />
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('insertUnorderedList') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="글머리 기호">&#8226; 목록</button>
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('insertOrderedList') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="번호 매기기">1. 목록</button>
-          <div className="w-px h-4 bg-gray-300 mx-1" />
-          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', 'h2') }}
-            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="제목">H2</button>
-          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', 'h3') }}
-            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="소제목">H3</button>
-          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', 'p') }}
-            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="본문">P</button>
           <div className="w-px h-4 bg-gray-300 mx-1" />
           <div className="relative">
             <button type="button" onMouseDown={e => { e.preventDefault(); setShowTablePicker(s => !s) }}
@@ -419,15 +498,7 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
                 <div className="fixed inset-0 z-40" onClick={() => setShowTablePicker(false)} />
                 <TablePicker
                   onInsert={(rows, cols) => {
-                    editorRef.current?.focus()
-                    const sel = window.getSelection()
-                    if (!sel.rangeCount || !editorRef.current.contains(sel.anchorNode)) {
-                      const range = document.createRange()
-                      range.selectNodeContents(editorRef.current)
-                      range.collapse(false)
-                      sel.removeAllRanges()
-                      sel.addRange(range)
-                    }
+                    ensureFocus()
                     document.execCommand('insertHTML', false, buildTableHTML(rows, cols))
                     markDirty()
                   }}
@@ -436,6 +507,23 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
               </>
             )}
           </div>
+          <div className="w-px h-4 bg-gray-300 mx-1" />
+          <button
+            type="button"
+            onMouseDown={e => { e.preventDefault(); saveSelection(); fileInputRef.current?.click() }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs flex items-center gap-1"
+            title="파일 첨부"
+          >
+            <Paperclip size={13} /> 첨부
+          </button>
+          {uploading && <span className="text-[10px] text-indigo-500 ml-1 animate-pulse">업로드 중...</span>}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt,.csv"
+            onChange={e => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0]); e.target.value = '' }}
+            style={{ display: 'none' }}
+          />
         </div>
       )}
 
