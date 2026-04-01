@@ -144,3 +144,62 @@
   color: #6366f1;
   text-decoration: underline;
 }
+
+/* Table styles for rich editor & meeting notes */
+.rich-editor-body table,
+[contenteditable] table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.rich-editor-body th,
+.rich-editor-body td,
+[contenteditable] th,
+[contenteditable] td {
+  border: 1px solid #d1d5db;
+  padding: 6px 10px;
+  text-align: left;
+  min-width: 60px;
+}
+.rich-editor-body th,
+[contenteditable] th {
+  background: #f3f4f6;
+  font-weight: 600;
+  font-size: 12px;
+  color: #374151;
+}
+.rich-editor-body td,
+[contenteditable] td {
+  background: #fff;
+}
+.rich-editor-body tr:hover td,
+[contenteditable] tr:hover td {
+  background: #f9fafb;
+}
+
+/* Table size picker popup */
+.table-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 20px);
+  gap: 2px;
+  padding: 8px;
+}
+.table-picker-cell {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.table-picker-cell.active {
+  background: #818cf8;
+  border-color: #6366f1;
+}
+.table-picker-cell:not(.active) {
+  background: #fff;
+}
+.table-picker-cell:not(.active):hover {
+  background: #e0e7ff;
+}

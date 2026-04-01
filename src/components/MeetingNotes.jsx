@@ -204,9 +204,47 @@ export default function MeetingNotes({ projectId, canEdit }) {
   )
 }
 
+function buildTableHTML(rows, cols) {
+  let html = '<table><thead><tr>'
+  for (let c = 0; c < cols; c++) html += `<th>제목 ${c + 1}</th>`
+  html += '</tr></thead><tbody>'
+  for (let r = 0; r < rows - 1; r++) {
+    html += '<tr>'
+    for (let c = 0; c < cols; c++) html += '<td><br></td>'
+    html += '</tr>'
+  }
+  html += '</tbody></table><p><br></p>'
+  return html
+}
+
+function TablePicker({ onInsert, onClose }) {
+  const [hover, setHover] = useState({ r: 0, c: 0 })
+  return (
+    <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl p-2" onMouseLeave={() => setHover({ r: 0, c: 0 })}>
+      <div className="text-[10px] text-gray-400 mb-1 text-center">{hover.r > 0 ? `${hover.r} x ${hover.c}` : '크기 선택'}</div>
+      <div className="table-picker-grid">
+        {Array.from({ length: 36 }, (_, i) => {
+          const r = Math.floor(i / 6) + 1
+          const c = (i % 6) + 1
+          const isActive = r <= hover.r && c <= hover.c
+          return (
+            <div
+              key={i}
+              className={`table-picker-cell ${isActive ? 'active' : ''}`}
+              onMouseEnter={() => setHover({ r, c })}
+              onClick={() => { onInsert(r, c); onClose() }}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function MeetingEditor({ meeting, canEdit, onSave }) {
   const [title, setTitle] = useState(meeting.title)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [showTablePicker, setShowTablePicker] = useState(false)
   const editorRef = useRef(null)
   const initializedRef = useRef(false)
   const composingRef = useRef(false)
@@ -316,6 +354,28 @@ function MeetingEditor({ meeting, canEdit, onSave }) {
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="소제목">H3</button>
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', 'p') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="본문">P</button>
+          <div className="w-px h-4 bg-gray-300 mx-1" />
+          <div className="relative">
+            <button type="button" onMouseDown={e => { e.preventDefault(); setShowTablePicker(s => !s) }}
+              className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="표 삽입">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
+              </svg>
+            </button>
+            {showTablePicker && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowTablePicker(false)} />
+                <TablePicker
+                  onInsert={(rows, cols) => {
+                    document.execCommand('insertHTML', false, buildTableHTML(rows, cols))
+                    editorRef.current?.focus()
+                    scheduleAutoSave()
+                  }}
+                  onClose={() => setShowTablePicker(false)}
+                />
+              </>
+            )}
+          </div>
         </div>
       )}
 
