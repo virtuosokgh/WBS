@@ -367,8 +367,16 @@ function MeetingEditor({ meeting, canEdit, onSave }) {
                 <div className="fixed inset-0 z-40" onClick={() => setShowTablePicker(false)} />
                 <TablePicker
                   onInsert={(rows, cols) => {
-                    document.execCommand('insertHTML', false, buildTableHTML(rows, cols))
                     editorRef.current?.focus()
+                    const sel = window.getSelection()
+                    if (!sel.rangeCount || !editorRef.current.contains(sel.anchorNode)) {
+                      const range = document.createRange()
+                      range.selectNodeContents(editorRef.current)
+                      range.collapse(false)
+                      sel.removeAllRanges()
+                      sel.addRange(range)
+                    }
+                    document.execCommand('insertHTML', false, buildTableHTML(rows, cols))
                     scheduleAutoSave()
                   }}
                   onClose={() => setShowTablePicker(false)}
@@ -380,10 +388,10 @@ function MeetingEditor({ meeting, canEdit, onSave }) {
       )}
 
       {/* Editor */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-6 py-4 bg-gray-50/50">
         <div
           ref={editorRef}
-          className={`min-h-[400px] text-sm text-gray-700 leading-relaxed focus:outline-none ${canEdit ? '' : 'pointer-events-none opacity-80'}`}
+          className={`min-h-[400px] text-sm text-gray-700 leading-relaxed focus:outline-none bg-white border border-gray-200 rounded-lg px-5 py-4 shadow-sm ${canEdit ? 'focus-within:border-indigo-300 focus-within:ring-2 focus-within:ring-indigo-100' : 'pointer-events-none opacity-80'}`}
           contentEditable={canEdit}
           suppressContentEditableWarning
           onCompositionStart={() => { composingRef.current = true }}

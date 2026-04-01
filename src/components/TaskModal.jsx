@@ -176,8 +176,17 @@ function RichEditor({ value, onChange }) {
               <div className="fixed inset-0 z-40" onClick={() => setShowTablePicker(false)} />
               <TablePicker
                 onInsert={(rows, cols) => {
-                  document.execCommand('insertHTML', false, buildTableHTML(rows, cols))
                   editorRef.current?.focus()
+                  // 커서가 없으면 끝에 배치
+                  const sel = window.getSelection()
+                  if (!sel.rangeCount || !editorRef.current.contains(sel.anchorNode)) {
+                    const range = document.createRange()
+                    range.selectNodeContents(editorRef.current)
+                    range.collapse(false)
+                    sel.removeAllRanges()
+                    sel.addRange(range)
+                  }
+                  document.execCommand('insertHTML', false, buildTableHTML(rows, cols))
                   onChange(editorRef.current?.innerHTML || '')
                 }}
                 onClose={() => setShowTablePicker(false)}
