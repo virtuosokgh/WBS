@@ -147,6 +147,11 @@
 }
 
 /* Heading & list styles for all contenteditable areas (meeting notes etc.) */
+[contenteditable] h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 12px 0 8px;
+}
 [contenteditable] h2 {
   font-size: 18px;
   font-weight: 700;

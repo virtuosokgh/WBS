@@ -474,6 +474,8 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('strikeThrough') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs line-through" title="취소선">S</button>
           <div className="w-px h-4 bg-gray-300 mx-1" />
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', '<h1>') }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="큰 제목">H1</button>
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', '<h2>') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="제목">H2</button>
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', '<h3>') }}
