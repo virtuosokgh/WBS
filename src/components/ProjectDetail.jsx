@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { ArrowLeft, Users, List, BarChart2, Layout, Pencil, Trash2, LogOut, Check, X, Layers, GitBranch, ChevronDown, Bell } from 'lucide-react'
+import { ArrowLeft, Users, List, BarChart2, Layout, Pencil, Trash2, LogOut, Check, X, Layers, GitBranch, ChevronDown, Bell, FileText } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { formatDate, getDday, STATUS_OPTIONS } from '../utils/helpers'
 import { updateProject, deleteProject, getUserProjectRole } from '../lib/db'
@@ -8,6 +8,7 @@ import MemberPanel from './MemberPanel'
 import GanttView from './GanttView'
 import StoryboardView from './StoryboardView'
 import FlowchartView from '../storyboard/FlowchartView'
+import MeetingNotes from './MeetingNotes'
 import Footer from './Footer'
 import { getSlackWebhookUrl, setSlackWebhookUrl } from '../lib/slack'
 import Modal from './Modal'
@@ -15,6 +16,7 @@ import Modal from './Modal'
 const TABS = [
   { id: 'wbs', label: '보드', icon: List },
   { id: 'gantt', label: '간트차트', icon: BarChart2 },
+  { id: 'meetings', label: '회의록', icon: FileText },
   {
     id: 'planning',
     label: '기획',
@@ -338,17 +340,23 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
-        {activeTab === 'wbs' && <WBSTable projectId={projectId} canEdit={canEdit} currentUser={user} />}
-        {activeTab === 'gantt' && <GanttView projectId={projectId} onGoToScreen={goToScreen} canEdit={canEdit} />}
-        {activeTab === 'planning' && activeSub === 'storyboard' && (
-          <StoryboardView projectId={projectId} projectName={project?.name} initialScreenId={targetScreenId} canEdit={canEdit} />
-        )}
-        {activeTab === 'planning' && activeSub === 'flowchart' && (
-          <FlowchartView projectId={projectId} />
-        )}
-        {activeTab === 'members' && <MemberPanel projectId={projectId} user={user} isOwner={isOwner} />}
-      </div>
+      {activeTab === 'meetings' ? (
+        <div className="flex-1 max-w-6xl mx-auto w-full">
+          <MeetingNotes projectId={projectId} canEdit={canEdit} />
+        </div>
+      ) : (
+        <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+          {activeTab === 'wbs' && <WBSTable projectId={projectId} canEdit={canEdit} currentUser={user} />}
+          {activeTab === 'gantt' && <GanttView projectId={projectId} onGoToScreen={goToScreen} canEdit={canEdit} />}
+          {activeTab === 'planning' && activeSub === 'storyboard' && (
+            <StoryboardView projectId={projectId} projectName={project?.name} initialScreenId={targetScreenId} canEdit={canEdit} />
+          )}
+          {activeTab === 'planning' && activeSub === 'flowchart' && (
+            <FlowchartView projectId={projectId} />
+          )}
+          {activeTab === 'members' && <MemberPanel projectId={projectId} user={user} isOwner={isOwner} />}
+        </div>
+      )}
 
       <Footer />
 
