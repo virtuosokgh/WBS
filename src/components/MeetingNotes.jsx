@@ -541,6 +541,18 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
           onCompositionStart={() => { composingRef.current = true }}
           onCompositionEnd={() => { composingRef.current = false; markDirty() }}
           onInput={() => { if (!composingRef.current) markDirty() }}
+          onKeyDown={e => {
+            if (e.key === 'Tab') {
+              const sel = window.getSelection()
+              const node = sel?.anchorNode
+              const li = node?.nodeType === 3 ? node.parentElement?.closest('li') : node?.closest?.('li')
+              if (li) {
+                e.preventDefault()
+                document.execCommand(e.shiftKey ? 'outdent' : 'indent', false, null)
+                markDirty()
+              }
+            }
+          }}
           data-placeholder="회의 내용을 작성하세요..."
           style={{ whiteSpace: 'pre-wrap' }}
         />
