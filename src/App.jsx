@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
+import { migrateLocalStorageToSupabase } from './lib/migrateLocalStorage'
 import AuthPage from './components/AuthPage'
 import ProjectList from './components/ProjectList'
 import ProjectDetail from './components/ProjectDetail'
@@ -51,6 +52,8 @@ export default function App() {
         setSession(null)
       } else {
         setSession(session)
+        // localStorage → Supabase 일회성 마이그레이션
+        if (session) migrateLocalStorageToSupabase().catch(() => {})
       }
       if (!session) {
         setView('projects')
