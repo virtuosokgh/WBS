@@ -18,6 +18,44 @@ function mapRow(row) {
   }
 }
 
+// localStorage → Supabase 자동 마이그레이션 (Supabase 비어있을 때)
+async function autoMigrateFromLocalStorage(projectId) {
+  const lsKey = `sprints_${projectId}`
+  try {
+    const raw = localStorage.getItem(lsKey)
+    if (!raw) return []
+    const sprints = JSON.parse(raw)
+    if (!sprints.length) return []
+
+    const rows = sprints.map(s => ({
+      id: s.id,
+      project_id: projectId,
+      name: s.name,
+      number: s.number || 1,
+      description: s.description || '',
+      start_date: s.startDate || null,
+      end_date: s.endDate || null,
+      status: s.status || 'active',
+      task_ids: s.taskIds || [],
+      completed_at: s.completedAt ? new Date(s.completedAt).toISOString() : null,
+      created_at: s.createdAt ? new Date(s.createdAt).toISOString() : new Date().toISOString(),
+    }))
+
+    const { data, error } = await supabase.from('sprints').upsert(rows, { onConflict: 'id' }).select()
+    if (error) {
+      console.error('[sprint migration] error:', error.message)
+      return []
+    }
+    // 마이그레이션 성공 후 localStorage 정리
+    localStorage.removeItem(lsKey)
+    console.log(`[sprint migration] ${rows.length}개 스프린트 마이그레이션 완료`)
+    return (data || []).map(mapRow)
+  } catch (e) {
+    console.error('[sprint migration] parse error:', e)
+    return []
+  }
+}
+
 export async function getSprints(projectId) {
   const { data, error } = await supabase
     .from('sprints')
@@ -25,6 +63,13 @@ export async function getSprints(projectId) {
     .eq('project_id', projectId)
     .order('created_at')
   if (error) { console.error('getSprints error:', error); return [] }
+
+  // Supabase에 데이터 없으면 localStorage에서 자동 마이그레이션
+  if (!data || data.length === 0) {
+    const migrated = await autoMigrateFromLocalStorage(projectId)
+    if (migrated.length > 0) return migrated
+  }
+
   return (data || []).map(mapRow)
 }
 
@@ -34,7 +79,6 @@ export async function getActiveSprint(projectId) {
 }
 
 export async function createSprint(projectId, { name, description, startDate, endDate }) {
-  // 번호 계산
   const existing = await getSprints(projectId)
   const number = existing.length === 0 ? 1 : Math.max(...existing.map(s => s.number)) + 1
 

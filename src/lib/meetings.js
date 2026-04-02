@@ -14,6 +14,40 @@ function mapRow(row) {
   }
 }
 
+// localStorage → Supabase 자동 마이그레이션 (Supabase 비어있을 때)
+async function autoMigrateFromLocalStorage(projectId) {
+  const lsKey = `meetings_${projectId}`
+  try {
+    const raw = localStorage.getItem(lsKey)
+    if (!raw) return []
+    const meetings = JSON.parse(raw)
+    if (!meetings.length) return []
+
+    const rows = meetings.map(m => ({
+      id: m.id,
+      project_id: projectId,
+      sprint_id: m.sprintId,
+      type: m.type || 'custom',
+      title: m.title || '',
+      content: m.content || '',
+      created_at: m.createdAt ? new Date(m.createdAt).toISOString() : new Date().toISOString(),
+      updated_at: m.updatedAt ? new Date(m.updatedAt).toISOString() : new Date().toISOString(),
+    }))
+
+    const { data, error } = await supabase.from('meetings').upsert(rows, { onConflict: 'id' }).select()
+    if (error) {
+      console.error('[meeting migration] error:', error.message)
+      return []
+    }
+    localStorage.removeItem(lsKey)
+    console.log(`[meeting migration] ${rows.length}개 회의록 마이그레이션 완료`)
+    return (data || []).map(mapRow)
+  } catch (e) {
+    console.error('[meeting migration] parse error:', e)
+    return []
+  }
+}
+
 export async function getMeetings(projectId) {
   const { data, error } = await supabase
     .from('meetings')
@@ -21,6 +55,12 @@ export async function getMeetings(projectId) {
     .eq('project_id', projectId)
     .order('created_at')
   if (error) { console.error('getMeetings error:', error); return [] }
+
+  if (!data || data.length === 0) {
+    const migrated = await autoMigrateFromLocalStorage(projectId)
+    if (migrated.length > 0) return migrated
+  }
+
   return (data || []).map(mapRow)
 }
 
@@ -37,6 +77,9 @@ export async function getMeetingsBySprintId(projectId, sprintId) {
 
 // 스프린트에 기본 회의(계획/회고) 생성
 export async function ensureDefaultMeetings(projectId, sprintId, sprintName) {
+  // 먼저 전체 meetings 마이그레이션 시도 (한 번만 실행됨)
+  await getMeetings(projectId)
+
   const meetings = await getMeetingsBySprintId(projectId, sprintId)
 
   const hasPlanning = meetings.some(m => m.type === 'planning')
