@@ -149,6 +149,51 @@ CREATE TABLE IF NOT EXISTS public.friendships (
 );
 ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
 
+-- 7. SPRINTS (스프린트)
+CREATE TABLE IF NOT EXISTS public.sprints (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id  UUID REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
+  name        TEXT NOT NULL,
+  number      INTEGER NOT NULL DEFAULT 1,
+  description TEXT DEFAULT '',
+  start_date  DATE,
+  end_date    DATE,
+  status      TEXT DEFAULT 'active',
+  task_ids    TEXT[] DEFAULT '{}',
+  completed_at TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.sprints ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "sprints_access" ON public.sprints FOR ALL USING (
+  project_id IN (
+    SELECT id FROM public.projects WHERE owner_id = auth.uid()
+    UNION
+    SELECT project_id FROM public.project_members WHERE user_id = auth.uid() AND status = 'accepted'
+  )
+);
+
+-- 8. MEETINGS (회의록)
+CREATE TABLE IF NOT EXISTS public.meetings (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id  UUID REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
+  sprint_id   UUID REFERENCES public.sprints(id) ON DELETE CASCADE NOT NULL,
+  type        TEXT DEFAULT 'custom' CHECK (type IN ('planning', 'retrospective', 'custom')),
+  title       TEXT NOT NULL,
+  content     TEXT DEFAULT '',
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.meetings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "meetings_access" ON public.meetings FOR ALL USING (
+  project_id IN (
+    SELECT id FROM public.projects WHERE owner_id = auth.uid()
+    UNION
+    SELECT project_id FROM public.project_members WHERE user_id = auth.uid() AND status = 'accepted'
+  )
+);
+
 CREATE POLICY "friendships_select" ON public.friendships FOR SELECT USING (
   requester_id = auth.uid() OR addressee_id = auth.uid()
 );

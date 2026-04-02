@@ -83,9 +83,9 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
       if (data) {
         setTasks(t => [...t, data])
         // Auto-associate new task with active sprint
-        const active = getActiveSprint(projectId)
+        const active = await getActiveSprint(projectId)
         if (active) {
-          addTaskToSprint(projectId, active.id, data.id)
+          await addTaskToSprint(projectId, active.id, data.id)
         }
       }
     }
@@ -99,9 +99,11 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
     const allIds = getAllDescendants(tasks, id)
     allIds.add(id)
     // Remove from active sprint
-    const active = getActiveSprint(projectId)
+    const active = await getActiveSprint(projectId)
     if (active) {
-      allIds.forEach(tid => removeTaskFromSprint(projectId, active.id, tid))
+      for (const tid of allIds) {
+        await removeTaskFromSprint(projectId, active.id, tid)
+      }
     }
     setTasks(t => t.filter(x => !allIds.has(x.id)))
   }

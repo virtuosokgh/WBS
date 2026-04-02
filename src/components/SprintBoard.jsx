@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid, FileText } from 'lucide-react'
-import { getSprints, getActiveSprint, getNextSprintNumber, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription, updateSprint } from '../lib/sprints'
+import { getSprints, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription, updateSprint, updateSprintTaskIds } from '../lib/sprints'
 import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS, SPRINT_STATUS_OPTIONS } from '../utils/helpers'
 import Modal from './Modal'
 
@@ -50,8 +50,8 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   const [showDescModal, setShowDescModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
 
-  const refresh = useCallback(() => {
-    const all = getSprints(projectId)
+  const refresh = useCallback(async () => {
+    const all = await getSprints(projectId)
     setSprints(all)
     const active = all.find(s => s.status === 'active') || null
     setActiveSprint(active)
@@ -79,34 +79,30 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
     onRefreshSprints?.(() => refresh)
   }, [onRefreshSprints, refresh])
 
-  function handleCreate(formData) {
-    const sprint = createSprint(projectId, formData)
+  async function handleCreate(formData) {
+    const sprint = await createSprint(projectId, formData)
+    if (!sprint) return
     if (tasks) {
+      const taskIdsToAdd = tasks.filter(t => t.status !== 'done').map(t => t.id)
+      if (taskIdsToAdd.length > 0) {
+        await updateSprintTaskIds(projectId, sprint.id, taskIdsToAdd)
+      }
       tasks.forEach(t => {
-        if (t.status !== 'done') {
-          addTaskToSprint(projectId, sprint.id, t.id)
-          // 스프린트에 추가된 backlog 작업은 자동으로 '할일'로 변경
-          if (t.status === 'backlog') {
-            onStatusChange?.(t.id, 'todo')
-          }
+        if (t.status !== 'done' && t.status === 'backlog') {
+          onStatusChange?.(t.id, 'todo')
         }
       })
     }
     setShowCreateModal(false)
-    // 새 스프린트로 자동 전환
     setViewingSprint(sprint)
-    refresh()
+    await refresh()
   }
 
-  function handleComplete() {
+  async function handleComplete() {
     if (!activeSprint) return
-    const incompleteTasks = tasks
-      ? tasks.filter(t => activeSprint.taskIds.includes(t.id) && t.status !== 'done')
-      : []
-    const carryOverIds = incompleteTasks.map(t => t.id)
-    completeSprint(projectId, activeSprint.id, carryOverIds)
+    await completeSprint(projectId, activeSprint.id)
     setShowCompleteConfirm(false)
-    refresh()
+    await refresh()
   }
 
   function selectSprint(sprint) {
@@ -114,12 +110,11 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
     setShowSelector(false)
   }
 
-  function handleRemoveTask(taskId) {
+  async function handleRemoveTask(taskId) {
     if (!currentSprint) return
-    removeTaskFromSprint(projectId, currentSprint.id, taskId)
-    // 스프린트에서 제거 시 상태를 '대기'(backlog)로 변경
+    await removeTaskFromSprint(projectId, currentSprint.id, taskId)
     onStatusChange?.(taskId, 'backlog')
-    refresh()
+    await refresh()
   }
 
   // Drag & Drop handlers
@@ -133,15 +128,14 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
     setDragOver(false)
   }
 
-  function handleDrop(e) {
+  async function handleDrop(e) {
     e.preventDefault()
     setDragOver(false)
     const taskId = e.dataTransfer.getData('text/task-id')
     if (taskId && currentSprint) {
-      addTaskToSprint(projectId, currentSprint.id, taskId)
-      // 스프린트에 추가 시 상태를 '할일'(todo)로 변경
+      await addTaskToSprint(projectId, currentSprint.id, taskId)
       onStatusChange?.(taskId, 'todo')
-      refresh()
+      await refresh()
     }
   }
 
@@ -620,9 +614,9 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
           sprints={sprints}
           projectId={projectId}
           onClose={() => setShowEditModal(false)}
-          onSave={(formData) => {
-            updateSprint(projectId, currentSprint.id, formData)
-            refresh()
+          onSave={async (formData) => {
+            await updateSprint(projectId, currentSprint.id, formData)
+            await refresh()
             setShowEditModal(false)
           }}
         />
@@ -633,9 +627,9 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
           sprint={currentSprint}
           projectId={projectId}
           onClose={() => setShowDescModal(false)}
-          onSave={(desc) => {
-            updateSprintDescription(projectId, currentSprint.id, desc)
-            refresh()
+          onSave={async (desc) => {
+            await updateSprintDescription(projectId, currentSprint.id, desc)
+            await refresh()
             setShowDescModal(false)
           }}
         />
@@ -664,7 +658,7 @@ function checkSprintOverlap(startDate, endDate, existingSprints, excludeId = nul
 
 /* -- Sprint Creation Modal -- */
 function SprintCreateModal({ projectId, sprints, onClose, onCreate }) {
-  const nextNumber = getNextSprintNumber(projectId)
+  const nextNumber = sprints.length === 0 ? 1 : Math.max(...sprints.map(s => s.number)) + 1
   const [form, setForm] = useState({
     name: `스프린트 ${nextNumber}`,
     description: '',
@@ -895,7 +889,7 @@ function SprintDescriptionModal({ sprint, onClose, onSave }) {
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('insertOrderedList') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="번호 매기기">1.</button>
           <div className="w-px h-4 bg-gray-300 mx-1" />
-          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', 'h3') }}
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', '<h3>') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="제목">H</button>
         </div>
         <div

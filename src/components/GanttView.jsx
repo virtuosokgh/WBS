@@ -66,8 +66,11 @@ export default function GanttView({ projectId, onGoToScreen }) {
     }
   }
 
-  // Load sprints (필터에서 사용하므로 filteredTasks보다 먼저 선언)
-  const sprints = useMemo(() => getSprints(projectId), [projectId, tasks])
+  // Load sprints (필터에서 사용)
+  const [sprints, setSprints] = useState([])
+  useEffect(() => {
+    getSprints(projectId).then(setSprints)
+  }, [projectId, tasks])
 
   // ── 날짜 있는 작업 + 필터 적용 ──
   const filteredTasks = useMemo(() => {

@@ -1,95 +1,109 @@
-// Meeting notes localStorage persistence layer
-// Keyed by projectId: `meetings_${projectId}`
+// Meeting notes Supabase persistence layer
+import { supabase } from './supabase'
 
-import { generateId } from '../utils/helpers'
-
-function getStorageKey(projectId) {
-  return `meetings_${projectId}`
-}
-
-export function getMeetings(projectId) {
-  try {
-    const raw = localStorage.getItem(getStorageKey(projectId))
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
+function mapRow(row) {
+  if (!row) return null
+  return {
+    id: row.id,
+    sprintId: row.sprint_id,
+    type: row.type,
+    title: row.title,
+    content: row.content || '',
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+    updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
   }
 }
 
-function saveMeetings(projectId, meetings) {
-  localStorage.setItem(getStorageKey(projectId), JSON.stringify(meetings))
+export async function getMeetings(projectId) {
+  const { data, error } = await supabase
+    .from('meetings')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('created_at')
+  if (error) { console.error('getMeetings error:', error); return [] }
+  return (data || []).map(mapRow)
 }
 
-export function getMeetingsBySprintId(projectId, sprintId) {
-  return getMeetings(projectId).filter(m => m.sprintId === sprintId)
+export async function getMeetingsBySprintId(projectId, sprintId) {
+  const { data, error } = await supabase
+    .from('meetings')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('sprint_id', sprintId)
+    .order('created_at')
+  if (error) { console.error('getMeetingsBySprintId error:', error); return [] }
+  return (data || []).map(mapRow)
 }
 
 // 스프린트에 기본 회의(계획/회고) 생성
-export function ensureDefaultMeetings(projectId, sprintId, sprintName) {
-  const all = getMeetings(projectId)
-  const sprintMeetings = all.filter(m => m.sprintId === sprintId)
+export async function ensureDefaultMeetings(projectId, sprintId, sprintName) {
+  const meetings = await getMeetingsBySprintId(projectId, sprintId)
 
-  const hasPlanning = sprintMeetings.some(m => m.type === 'planning')
-  const hasRetro = sprintMeetings.some(m => m.type === 'retrospective')
+  const hasPlanning = meetings.some(m => m.type === 'planning')
+  const hasRetro = meetings.some(m => m.type === 'retrospective')
 
-  let changed = false
+  const toInsert = []
   if (!hasPlanning) {
-    all.push({
-      id: generateId(),
-      sprintId,
+    toInsert.push({
+      id: crypto.randomUUID(),
+      project_id: projectId,
+      sprint_id: sprintId,
       type: 'planning',
       title: `${sprintName} 계획 회의`,
       content: '',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
     })
-    changed = true
   }
   if (!hasRetro) {
-    all.push({
-      id: generateId(),
-      sprintId,
+    toInsert.push({
+      id: crypto.randomUUID(),
+      project_id: projectId,
+      sprint_id: sprintId,
       type: 'retrospective',
       title: `${sprintName} 회고 회의`,
       content: '',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
     })
-    changed = true
   }
-  if (changed) saveMeetings(projectId, all)
-  return getMeetingsBySprintId(projectId, sprintId)
-}
 
-export function createMeeting(projectId, { sprintId, title }) {
-  const all = getMeetings(projectId)
-  const meeting = {
-    id: generateId(),
-    sprintId,
-    type: 'custom',
-    title: title || '새 회의',
-    content: '',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+  if (toInsert.length > 0) {
+    const { error } = await supabase.from('meetings').insert(toInsert)
+    if (error) console.error('ensureDefaultMeetings insert error:', error)
   }
-  all.push(meeting)
-  saveMeetings(projectId, all)
-  return meeting
+
+  return await getMeetingsBySprintId(projectId, sprintId)
 }
 
-export function updateMeeting(projectId, meetingId, { title, content }) {
-  const all = getMeetings(projectId)
-  const idx = all.findIndex(m => m.id === meetingId)
-  if (idx === -1) return null
-  if (title !== undefined) all[idx].title = title
-  if (content !== undefined) all[idx].content = content
-  all[idx].updatedAt = Date.now()
-  saveMeetings(projectId, all)
-  return all[idx]
+export async function createMeeting(projectId, { sprintId, title }) {
+  const id = crypto.randomUUID()
+  const { data, error } = await supabase
+    .from('meetings')
+    .insert({
+      id,
+      project_id: projectId,
+      sprint_id: sprintId,
+      type: 'custom',
+      title: title || '새 회의',
+      content: '',
+    })
+    .select()
+    .single()
+  if (error) { console.error('createMeeting error:', error); return null }
+  return mapRow(data)
 }
 
-export function deleteMeeting(projectId, meetingId) {
-  const all = getMeetings(projectId)
-  const filtered = all.filter(m => m.id !== meetingId)
-  saveMeetings(projectId, filtered)
+export async function updateMeeting(projectId, meetingId, { title, content }) {
+  const updates = { updated_at: new Date().toISOString() }
+  if (title !== undefined) updates.title = title
+  if (content !== undefined) updates.content = content
+  const { data, error } = await supabase
+    .from('meetings')
+    .update(updates)
+    .eq('id', meetingId)
+    .select()
+    .single()
+  if (error) { console.error('updateMeeting error:', error); return null }
+  return mapRow(data)
+}
+
+export async function deleteMeeting(projectId, meetingId) {
+  await supabase.from('meetings').delete().eq('id', meetingId)
 }

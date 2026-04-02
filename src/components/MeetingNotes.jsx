@@ -17,35 +17,42 @@ export default function MeetingNotes({ projectId, canEdit }) {
   const [selectedMeeting, setSelectedMeeting] = useState(null)
   const [meetingsMap, setMeetingsMap] = useState({}) // sprintId -> meetings[]
   const [drafts, setDrafts] = useState({}) // meetingId -> unsaved content
+  const [loading, setLoading] = useState(true)
 
   // Load sprints
   useEffect(() => {
-    const all = getSprints(projectId)
-    setSprints(all)
-    // 가장 최근 스프린트를 자동으로 펼침
-    if (all.length > 0) {
-      const latest = all[all.length - 1]
-      setExpandedSprints({ [latest.id]: true })
-      // 기본 회의 생성 & 로드
-      const meetings = ensureDefaultMeetings(projectId, latest.id, latest.name)
-      setMeetingsMap(prev => ({ ...prev, [latest.id]: meetings }))
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      const all = await getSprints(projectId)
+      if (cancelled) return
+      setSprints(all)
+      if (all.length > 0) {
+        const latest = all[all.length - 1]
+        setExpandedSprints({ [latest.id]: true })
+        const meetings = await ensureDefaultMeetings(projectId, latest.id, latest.name)
+        if (!cancelled) setMeetingsMap(prev => ({ ...prev, [latest.id]: meetings }))
+      }
+      setLoading(false)
     }
+    load()
+    return () => { cancelled = true }
   }, [projectId])
 
-  function toggleSprint(sprintId, sprintName) {
+  async function toggleSprint(sprintId, sprintName) {
     setExpandedSprints(prev => {
       const next = { ...prev, [sprintId]: !prev[sprintId] }
-      // 열릴 때 회의 로드
-      if (next[sprintId] && !meetingsMap[sprintId]) {
-        const meetings = ensureDefaultMeetings(projectId, sprintId, sprintName)
-        setMeetingsMap(m => ({ ...m, [sprintId]: meetings }))
-      }
       return next
     })
+    // 열릴 때 회의 로드
+    if (!expandedSprints[sprintId] && !meetingsMap[sprintId]) {
+      const meetings = await ensureDefaultMeetings(projectId, sprintId, sprintName)
+      setMeetingsMap(m => ({ ...m, [sprintId]: meetings }))
+    }
   }
 
-  function loadSprintMeetings(sprintId, sprintName) {
-    const meetings = ensureDefaultMeetings(projectId, sprintId, sprintName)
+  async function loadSprintMeetings(sprintId, sprintName) {
+    const meetings = await ensureDefaultMeetings(projectId, sprintId, sprintName)
     setMeetingsMap(m => ({ ...m, [sprintId]: meetings }))
     return meetings
   }
@@ -54,29 +61,36 @@ export default function MeetingNotes({ projectId, canEdit }) {
     setSelectedMeeting({ ...meeting, sprintName })
   }
 
-  function handleAddMeeting(sprintId, sprintName) {
-    const meeting = createMeeting(projectId, { sprintId, title: '새 회의' })
-    const meetings = loadSprintMeetings(sprintId, sprintName)
+  async function handleAddMeeting(sprintId, sprintName) {
+    const meeting = await createMeeting(projectId, { sprintId, title: '새 회의' })
+    if (!meeting) return
+    await loadSprintMeetings(sprintId, sprintName)
     setSelectedMeeting({ ...meeting, sprintName })
   }
 
-  function handleDeleteMeeting(meetingId, sprintId, sprintName) {
-    deleteMeeting(projectId, meetingId)
-    loadSprintMeetings(sprintId, sprintName)
+  async function handleDeleteMeeting(meetingId, sprintId, sprintName) {
+    await deleteMeeting(projectId, meetingId)
+    await loadSprintMeetings(sprintId, sprintName)
     if (selectedMeeting?.id === meetingId) setSelectedMeeting(null)
   }
 
-  function handleSaveMeeting(meetingId, updates) {
-    const updated = updateMeeting(projectId, meetingId, updates)
+  async function handleSaveMeeting(meetingId, updates) {
+    const updated = await updateMeeting(projectId, meetingId, updates)
     if (!updated) return
-    // 사이드바 목록 갱신
     const sprint = sprints.find(s => s.id === updated.sprintId)
-    if (sprint) loadSprintMeetings(sprint.id, sprint.name)
-    // 선택 상태 갱신
+    if (sprint) await loadSprintMeetings(sprint.id, sprint.name)
     setSelectedMeeting(prev => prev?.id === meetingId ? { ...updated, sprintName: prev.sprintName } : prev)
   }
 
   const reversedSprints = useMemo(() => [...sprints].reverse(), [sprints])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-gray-400">
+        <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   if (sprints.length === 0) {
     return (
