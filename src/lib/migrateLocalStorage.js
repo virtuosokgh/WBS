@@ -1,10 +1,9 @@
 // One-time migration: localStorage sprints/meetings → Supabase
 import { supabase } from './supabase'
 
-const MIGRATED_KEY = 'ls_to_supabase_migrated'
+const MIGRATED_KEY = 'ls_to_supabase_migrated_v2'
 
 export async function migrateLocalStorageToSupabase() {
-  // 이미 마이그레이션 완료된 경우 스킵
   if (localStorage.getItem(MIGRATED_KEY)) return
 
   const keys = Object.keys(localStorage)
@@ -17,6 +16,7 @@ export async function migrateLocalStorageToSupabase() {
   }
 
   console.log('[migration] localStorage → Supabase 마이그레이션 시작')
+  let success = true
 
   // 스프린트 마이그레이션
   for (const key of sprintKeys) {
@@ -39,15 +39,19 @@ export async function migrateLocalStorageToSupabase() {
           completed_at: s.completedAt ? new Date(s.completedAt).toISOString() : null,
           created_at: s.createdAt ? new Date(s.createdAt).toISOString() : new Date().toISOString(),
         }, { onConflict: 'id' })
-        if (error) console.warn('[migration] sprint insert error:', s.id, error.message)
+        if (error) {
+          console.error('[migration] sprint insert error:', s.id, error.message)
+          success = false
+        }
       }
-      console.log(`[migration] sprints for project ${projectId}: ${sprints.length}개 마이그레이션`)
+      console.log(`[migration] sprints for project ${projectId}: ${sprints.length}개`)
     } catch (e) {
-      console.warn('[migration] sprint parse error:', key, e)
+      console.error('[migration] sprint parse error:', key, e)
+      success = false
     }
   }
 
-  // 회의록 마이그레이션
+  // 회의록 마이그레이션 (스프린트가 먼저 들어가야 FK 충족)
   for (const key of meetingKeys) {
     try {
       const projectId = key.replace('meetings_', '')
@@ -65,15 +69,22 @@ export async function migrateLocalStorageToSupabase() {
           created_at: m.createdAt ? new Date(m.createdAt).toISOString() : new Date().toISOString(),
           updated_at: m.updatedAt ? new Date(m.updatedAt).toISOString() : new Date().toISOString(),
         }, { onConflict: 'id' })
-        if (error) console.warn('[migration] meeting insert error:', m.id, error.message)
+        if (error) {
+          console.error('[migration] meeting insert error:', m.id, error.message)
+          success = false
+        }
       }
-      console.log(`[migration] meetings for project ${projectId}: ${meetings.length}개 마이그레이션`)
+      console.log(`[migration] meetings for project ${projectId}: ${meetings.length}개`)
     } catch (e) {
-      console.warn('[migration] meeting parse error:', key, e)
+      console.error('[migration] meeting parse error:', key, e)
+      success = false
     }
   }
 
-  // 마이그레이션 완료 표시
-  localStorage.setItem(MIGRATED_KEY, Date.now().toString())
-  console.log('[migration] 마이그레이션 완료')
+  if (success) {
+    localStorage.setItem(MIGRATED_KEY, Date.now().toString())
+    console.log('[migration] 마이그레이션 완료')
+  } else {
+    console.error('[migration] 일부 실패 - 다음 로드 시 재시도됩니다')
+  }
 }

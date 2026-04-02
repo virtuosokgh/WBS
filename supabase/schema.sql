@@ -151,7 +151,7 @@ ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
 
 -- 7. SPRINTS (스프린트)
 CREATE TABLE IF NOT EXISTS public.sprints (
-  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id          TEXT PRIMARY KEY,
   project_id  UUID REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
   name        TEXT NOT NULL,
   number      INTEGER NOT NULL DEFAULT 1,
@@ -175,9 +175,9 @@ CREATE POLICY "sprints_access" ON public.sprints FOR ALL USING (
 
 -- 8. MEETINGS (회의록)
 CREATE TABLE IF NOT EXISTS public.meetings (
-  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id          TEXT PRIMARY KEY,
   project_id  UUID REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
-  sprint_id   UUID REFERENCES public.sprints(id) ON DELETE CASCADE NOT NULL,
+  sprint_id   TEXT REFERENCES public.sprints(id) ON DELETE CASCADE NOT NULL,
   type        TEXT DEFAULT 'custom' CHECK (type IN ('planning', 'retrospective', 'custom')),
   title       TEXT NOT NULL,
   content     TEXT DEFAULT '',
