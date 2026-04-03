@@ -44,11 +44,16 @@ async function autoMigrateFromLocalStorage(projectId) {
     const { data, error } = await supabase.from('sprints').upsert(rows, { onConflict: 'id' }).select()
     if (error) {
       console.error('[sprint migration] error:', error.message)
+      // 실패 시 localStorage 유지 (데이터 보존)
       return []
     }
-    // 마이그레이션 성공 후 localStorage 정리
-    localStorage.removeItem(lsKey)
-    console.log(`[sprint migration] ${rows.length}개 스프린트 마이그레이션 완료`)
+    // Supabase에 실제로 들어갔는지 검증 후에만 localStorage 삭제
+    if (data && data.length === rows.length) {
+      localStorage.removeItem(lsKey)
+      console.log(`[sprint migration] ${rows.length}개 스프린트 마이그레이션 완료`)
+    } else {
+      console.warn('[sprint migration] 일부 데이터 누락 - localStorage 유지')
+    }
     return (data || []).map(mapRow)
   } catch (e) {
     console.error('[sprint migration] parse error:', e)

@@ -37,10 +37,16 @@ async function autoMigrateFromLocalStorage(projectId) {
     const { data, error } = await supabase.from('meetings').upsert(rows, { onConflict: 'id' }).select()
     if (error) {
       console.error('[meeting migration] error:', error.message)
+      // 실패 시 localStorage 유지 (데이터 보존)
       return []
     }
-    localStorage.removeItem(lsKey)
-    console.log(`[meeting migration] ${rows.length}개 회의록 마이그레이션 완료`)
+    // Supabase에 실제로 들어갔는지 검증 후에만 localStorage 삭제
+    if (data && data.length === rows.length) {
+      localStorage.removeItem(lsKey)
+      console.log(`[meeting migration] ${rows.length}개 회의록 마이그레이션 완료`)
+    } else {
+      console.warn('[meeting migration] 일부 데이터 누락 - localStorage 유지')
+    }
     return (data || []).map(mapRow)
   } catch (e) {
     console.error('[meeting migration] parse error:', e)
