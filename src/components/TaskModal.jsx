@@ -4,7 +4,7 @@ import { STATUS_OPTIONS, SPRINT_STATUS_OPTIONS, PRIORITY_OPTIONS, ROLE_COLORS, f
 import { supabase } from '../lib/supabase'
 import { getTaskComments, addTaskComment, deleteTaskComment } from '../lib/db'
 import { notifyComment } from '../lib/slack'
-import { addTableRow, addTableCol, removeTableRow, removeTableCol } from '../utils/tableUtils'
+import TableHoverControls from './TableHoverControls'
 
 /* ── 표 삽입 헬퍼 ── */
 function buildTableHTML(rows, cols) {
@@ -209,18 +209,6 @@ function RichEditor({ value, onChange }) {
             </>
           )}
         </div>
-        <button type="button" className="rich-tb-btn" style={{ fontSize: '10px' }}
-          onMouseDown={e => { e.preventDefault(); addTableRow(editorRef.current); onChange(editorRef.current?.innerHTML || '') }}
-          title="행 추가">행+</button>
-        <button type="button" className="rich-tb-btn" style={{ fontSize: '10px' }}
-          onMouseDown={e => { e.preventDefault(); addTableCol(editorRef.current); onChange(editorRef.current?.innerHTML || '') }}
-          title="열 추가">열+</button>
-        <button type="button" className="rich-tb-btn" style={{ fontSize: '10px' }}
-          onMouseDown={e => { e.preventDefault(); removeTableRow(editorRef.current); onChange(editorRef.current?.innerHTML || '') }}
-          title="행 삭제">행−</button>
-        <button type="button" className="rich-tb-btn" style={{ fontSize: '10px' }}
-          onMouseDown={e => { e.preventDefault(); removeTableCol(editorRef.current); onChange(editorRef.current?.innerHTML || '') }}
-          title="열 삭제">열−</button>
         <span className="rich-tb-sep" />
         <button
           type="button"
@@ -261,6 +249,7 @@ function RichEditor({ value, onChange }) {
         onDragOver={e => e.preventDefault()}
         data-placeholder="작업에 대한 상세 설명을 입력하세요. 이미지를 붙여넣거나 드래그할 수 있습니다."
       />
+      <TableHoverControls editorRef={editorRef} onContentChange={() => onChange(editorRef.current?.innerHTML || '')} />
       <input
         ref={fileInputRef}
         type="file"

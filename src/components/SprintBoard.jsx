@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid, FileText, Trash2 } from 'lucide-react'
 import { getSprints, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription, updateSprint, updateSprintTaskIds, deleteSprint } from '../lib/sprints'
 import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS, SPRINT_STATUS_OPTIONS } from '../utils/helpers'
-import { addTableRow, addTableCol, removeTableRow, removeTableCol } from '../utils/tableUtils'
+import TableHoverControls from './TableHoverControls'
 import Modal from './Modal'
 
 const STATUS_BADGE = {
@@ -1012,12 +1012,6 @@ function SprintDescriptionModal({ sprint, onClose, onSave }) {
     if (!composingRef.current) setDesc(editorRef.current?.innerHTML || '')
   }
 
-  function handleTableAction(action) {
-    ensureFocus()
-    const ok = action(editorRef.current)
-    if (ok) setDesc(editorRef.current?.innerHTML || '')
-  }
-
   return (
     <Modal title={`${sprint.name} - 설명`} onClose={onClose} onConfirm={() => onSave(desc)} confirmLabel="저장" size="md">
       <div className="space-y-3">
@@ -1052,14 +1046,6 @@ function SprintDescriptionModal({ sprint, onClose, onSave }) {
               </>
             )}
           </div>
-          <button type="button" onMouseDown={e => { e.preventDefault(); handleTableAction(addTableRow) }}
-            className="p-1.5 rounded hover:bg-gray-200 text-gray-500 text-[10px]" title="행 추가">행+</button>
-          <button type="button" onMouseDown={e => { e.preventDefault(); handleTableAction(addTableCol) }}
-            className="p-1.5 rounded hover:bg-gray-200 text-gray-500 text-[10px]" title="열 추가">열+</button>
-          <button type="button" onMouseDown={e => { e.preventDefault(); handleTableAction(removeTableRow) }}
-            className="p-1.5 rounded hover:bg-gray-200 text-gray-500 text-[10px]" title="행 삭제">행−</button>
-          <button type="button" onMouseDown={e => { e.preventDefault(); handleTableAction(removeTableCol) }}
-            className="p-1.5 rounded hover:bg-gray-200 text-gray-500 text-[10px]" title="열 삭제">열−</button>
         </div>
         <div
           ref={editorRef}
@@ -1080,6 +1066,7 @@ function SprintDescriptionModal({ sprint, onClose, onSave }) {
           data-placeholder="스프린트 목표, 주요 작업 내용, 회의 내용 등을 작성하세요."
           style={{ whiteSpace: 'pre-wrap' }}
         />
+        <TableHoverControls editorRef={editorRef} onContentChange={() => setDesc(editorRef.current?.innerHTML || '')} />
         <p className="text-xs text-gray-400">스프린트의 목표, 범위, 주요 이슈 등을 기록할 수 있습니다.</p>
       </div>
     </Modal>
