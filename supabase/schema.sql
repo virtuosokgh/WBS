@@ -68,10 +68,16 @@ CREATE TABLE IF NOT EXISTS public.project_members (
 );
 ALTER TABLE public.project_members ENABLE ROW LEVEL SECURITY;
 
+-- 순환 참조 방지를 위한 SECURITY DEFINER 함수
+CREATE OR REPLACE FUNCTION public.get_my_project_ids()
+RETURNS SETOF UUID AS $$
+  SELECT project_id FROM public.project_members WHERE user_id = auth.uid() AND status = 'accepted'
+  UNION
+  SELECT id FROM public.projects WHERE owner_id = auth.uid()
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
 CREATE POLICY "project_members_select" ON public.project_members FOR SELECT USING (
-  user_id = auth.uid()
-  OR project_id IN (SELECT id FROM public.projects WHERE owner_id = auth.uid())
-  OR project_id IN (SELECT pm.project_id FROM public.project_members pm WHERE pm.user_id = auth.uid() AND pm.status = 'accepted')
+  project_id IN (SELECT public.get_my_project_ids())
 );
 CREATE POLICY "project_members_insert" ON public.project_members FOR INSERT WITH CHECK (
   project_id IN (SELECT id FROM public.projects WHERE owner_id = auth.uid())
