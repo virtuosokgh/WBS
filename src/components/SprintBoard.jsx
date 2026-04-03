@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid, FileText } from 'lucide-react'
-import { getSprints, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription, updateSprint, updateSprintTaskIds } from '../lib/sprints'
+import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid, FileText, Trash2 } from 'lucide-react'
+import { getSprints, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription, updateSprint, updateSprintTaskIds, deleteSprint } from '../lib/sprints'
 import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS, SPRINT_STATUS_OPTIONS } from '../utils/helpers'
 import { addTableRow, addTableCol, removeTableRow, removeTableCol } from '../utils/tableUtils'
 import Modal from './Modal'
@@ -50,6 +50,7 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   }, [onViewModeChange])
   const [showDescModal, setShowDescModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const refresh = useCallback(async () => {
     const all = await getSprints(projectId)
@@ -103,6 +104,20 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
     if (!activeSprint) return
     await completeSprint(projectId, activeSprint.id)
     setShowCompleteConfirm(false)
+    await refresh()
+  }
+
+  async function handleDelete() {
+    if (!currentSprint) return
+    // 스프린트에 속한 작업을 백로그로 이동
+    const sprintTaskIds = currentSprint.taskIds || []
+    for (const taskId of sprintTaskIds) {
+      onStatusChange?.(taskId, 'backlog')
+    }
+    const ok = await deleteSprint(projectId, currentSprint.id)
+    if (!ok) return
+    setShowDeleteConfirm(false)
+    setViewingSprint(null)
     await refresh()
   }
 
@@ -248,19 +263,32 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                             <div className="px-3 py-2 text-sm text-gray-400">기록 없음</div>
                           )}
                           {[...sprints].reverse().map(s => (
-                            <button
+                            <div
                               key={s.id}
-                              onClick={() => selectSprint(s)}
-                              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between gap-2 ${
+                              className={`flex items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-gray-50 group/sprint-item ${
                                 viewingSprint?.id === s.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
                               }`}
                             >
-                              <div className="min-w-0">
+                              <button
+                                onClick={() => selectSprint(s)}
+                                className="flex-1 text-left min-w-0"
+                              >
                                 <div className="truncate font-medium">{s.name}</div>
                                 <div className="text-xs text-gray-400">{formatDate(s.startDate)} ~ {formatDate(s.endDate)}</div>
+                              </button>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <SprintStatusBadge status={s.status} />
+                                {canEdit && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setViewingSprint(s); setShowSelector(false); setShowDeleteConfirm(true) }}
+                                    className="opacity-0 group-hover/sprint-item:opacity-100 p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-all"
+                                    title="스프린트 삭제"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                )}
                               </div>
-                              <SprintStatusBadge status={s.status} />
-                            </button>
+                            </div>
                           ))}
                         </div>
                       </>
@@ -635,6 +663,15 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
           }}
         />
       )}
+
+      {showDeleteConfirm && currentSprint && (
+        <SprintDeleteModal
+          sprint={currentSprint}
+          tasks={tasks}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={handleDelete}
+        />
+      )}
     </div>
   )
 }
@@ -857,6 +894,45 @@ function SprintCompleteModal({ sprint, tasks, onClose, onConfirm }) {
             미완료 작업은 다음 스프린트 생성 시 자동으로 포함됩니다.
           </div>
         )}
+      </div>
+    </Modal>
+  )
+}
+
+/* -- Sprint Delete Confirmation Modal -- */
+function SprintDeleteModal({ sprint, tasks, onClose, onConfirm }) {
+  const sprintTasks = tasks.filter(t => sprint.taskIds.includes(t.id))
+  const [confirmText, setConfirmText] = useState('')
+
+  return (
+    <Modal title="스프린트 삭제" onClose={onClose} onConfirm={onConfirm} confirmLabel="삭제" confirmDisabled={confirmText !== sprint.name}>
+      <div className="space-y-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          <p className="text-sm text-red-700 font-medium">⚠ 이 작업은 되돌릴 수 없습니다.</p>
+          <p className="text-xs text-red-600 mt-1">
+            <span className="font-semibold">{sprint.name}</span>과(와) 연결된 회의록이 모두 삭제됩니다.
+          </p>
+        </div>
+        {sprintTasks.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+            <p className="text-xs text-amber-700">
+              스프린트에 포함된 <span className="font-bold">{sprintTasks.length}개</span> 작업은 삭제되지 않으며, 백로그로 이동합니다.
+            </p>
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            확인을 위해 스프린트 이름 <span className="font-bold text-red-600">"{sprint.name}"</span>을(를) 입력하세요
+          </label>
+          <input
+            type="text"
+            value={confirmText}
+            onChange={e => setConfirmText(e.target.value)}
+            placeholder={sprint.name}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+            autoFocus
+          />
+        </div>
       </div>
     </Modal>
   )

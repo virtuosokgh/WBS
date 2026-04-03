@@ -162,3 +162,13 @@ export async function updateSprintDescription(projectId, sprintId, description) 
 export async function updateSprintTaskIds(projectId, sprintId, taskIds) {
   await supabase.from('sprints').update({ task_ids: taskIds }).eq('id', sprintId)
 }
+
+export async function deleteSprint(projectId, sprintId) {
+  const { error } = await supabase
+    .from('sprints')
+    .delete()
+    .eq('id', sprintId)
+    .eq('project_id', projectId)
+  if (error) { console.error('deleteSprint error:', error); return false }
+  return true
+}
