@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid, FileText } from 'lucide-react'
 import { getSprints, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription, updateSprint, updateSprintTaskIds } from '../lib/sprints'
 import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS, SPRINT_STATUS_OPTIONS } from '../utils/helpers'
+import { addTableRow, addTableCol, removeTableRow, removeTableCol } from '../utils/tableUtils'
 import Modal from './Modal'
 
 const STATUS_BADGE = {
@@ -861,22 +862,91 @@ function SprintCompleteModal({ sprint, tasks, onClose, onConfirm }) {
   )
 }
 
+/* -- 표 삽입 헬퍼 -- */
+function buildDescTableHTML(rows, cols) {
+  let html = '<table><thead><tr>'
+  for (let c = 0; c < cols; c++) html += `<th>제목 ${c + 1}</th>`
+  html += '</tr></thead><tbody>'
+  for (let r = 0; r < rows - 1; r++) {
+    html += '<tr>'
+    for (let c = 0; c < cols; c++) html += '<td><br></td>'
+    html += '</tr>'
+  }
+  html += '</tbody></table><p><br></p>'
+  return html
+}
+
+function DescTablePicker({ onInsert, onClose }) {
+  const [hover, setHover] = useState({ r: 0, c: 0 })
+  return (
+    <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl p-2" onMouseLeave={() => setHover({ r: 0, c: 0 })}>
+      <div className="text-[10px] text-gray-400 mb-1 text-center">{hover.r > 0 ? `${hover.r} x ${hover.c}` : '크기 선택'}</div>
+      <div className="table-picker-grid">
+        {Array.from({ length: 36 }, (_, i) => {
+          const r = Math.floor(i / 6) + 1, c = (i % 6) + 1
+          return (
+            <div key={i} className={`table-picker-cell ${r <= hover.r && c <= hover.c ? 'active' : ''}`}
+              onMouseEnter={() => setHover({ r, c })}
+              onClick={() => { onInsert(r, c); onClose() }}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /* -- Sprint Description Modal -- */
 function SprintDescriptionModal({ sprint, onClose, onSave }) {
   const editorRef = useRef(null)
+  const initializedRef = useRef(false)
+  const composingRef = useRef(false)
   const [desc, setDesc] = useState(sprint.description || '')
+  const [showTablePicker, setShowTablePicker] = useState(false)
+
+  // 초기 콘텐츠 설정 (dangerouslySetInnerHTML 대신 ref 방식)
+  useEffect(() => {
+    if (editorRef.current && !initializedRef.current) {
+      editorRef.current.innerHTML = sprint.description || ''
+      initializedRef.current = true
+    }
+  }, [])
+
+  function ensureFocus() {
+    const el = editorRef.current
+    if (!el) return
+    el.focus()
+    const sel = window.getSelection()
+    if (!sel.rangeCount || !el.contains(sel.anchorNode)) {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      range.collapse(false)
+      sel.removeAllRanges()
+      sel.addRange(range)
+    }
+  }
 
   function execCmd(cmd, val = null) {
+    ensureFocus()
     document.execCommand(cmd, false, val)
-    editorRef.current?.focus()
     setDesc(editorRef.current?.innerHTML || '')
+  }
+
+  function syncDesc() {
+    if (!composingRef.current) setDesc(editorRef.current?.innerHTML || '')
+  }
+
+  function handleTableAction(action) {
+    ensureFocus()
+    const ok = action(editorRef.current)
+    if (ok) setDesc(editorRef.current?.innerHTML || '')
   }
 
   return (
     <Modal title={`${sprint.name} - 설명`} onClose={onClose} onConfirm={() => onSave(desc)} confirmLabel="저장" size="md">
       <div className="space-y-3">
         {/* 툴바 */}
-        <div className="flex items-center gap-0.5 p-1.5 border border-b-0 border-gray-300 rounded-t-lg bg-gray-50">
+        <div className="flex items-center gap-0.5 p-1.5 border border-b-0 border-gray-300 rounded-t-lg bg-gray-50 flex-wrap">
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('bold') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="굵게">B</button>
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('italic') }}
@@ -884,21 +954,53 @@ function SprintDescriptionModal({ sprint, onClose, onSave }) {
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('underline') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs underline" title="밑줄">U</button>
           <div className="w-px h-4 bg-gray-300 mx-1" />
+          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', '<h3>') }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="제목">H</button>
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('insertUnorderedList') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="글머리 기호">•</button>
           <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('insertOrderedList') }}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="번호 매기기">1.</button>
           <div className="w-px h-4 bg-gray-300 mx-1" />
-          <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('formatBlock', '<h3>') }}
-            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs font-bold" title="제목">H</button>
+          <div className="relative">
+            <button type="button" onMouseDown={e => { e.preventDefault(); setShowTablePicker(s => !s) }}
+              className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-xs" title="표 삽입">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+            </button>
+            {showTablePicker && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowTablePicker(false)} />
+                <DescTablePicker
+                  onInsert={(r, c) => { ensureFocus(); document.execCommand('insertHTML', false, buildDescTableHTML(r, c)); setDesc(editorRef.current?.innerHTML || '') }}
+                  onClose={() => setShowTablePicker(false)}
+                />
+              </>
+            )}
+          </div>
+          <button type="button" onMouseDown={e => { e.preventDefault(); handleTableAction(addTableRow) }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-500 text-[10px]" title="행 추가">행+</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); handleTableAction(addTableCol) }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-500 text-[10px]" title="열 추가">열+</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); handleTableAction(removeTableRow) }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-500 text-[10px]" title="행 삭제">행−</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); handleTableAction(removeTableCol) }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-500 text-[10px]" title="열 삭제">열−</button>
         </div>
         <div
           ref={editorRef}
           className="w-full border border-gray-300 rounded-b-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[200px] max-h-[400px] overflow-y-auto"
           contentEditable
           suppressContentEditableWarning
-          onInput={() => setDesc(editorRef.current?.innerHTML || '')}
-          dangerouslySetInnerHTML={{ __html: desc }}
+          onInput={syncDesc}
+          onCompositionStart={() => { composingRef.current = true }}
+          onCompositionEnd={() => { composingRef.current = false; setDesc(editorRef.current?.innerHTML || '') }}
+          onKeyDown={e => {
+            if (e.key === 'Tab') {
+              const sel = window.getSelection()
+              const node = sel?.anchorNode
+              const li = node?.nodeType === 3 ? node.parentElement?.closest('li') : node?.closest?.('li')
+              if (li) { e.preventDefault(); document.execCommand(e.shiftKey ? 'outdent' : 'indent', false, null); syncDesc() }
+            }
+          }}
           data-placeholder="스프린트 목표, 주요 작업 내용, 회의 내용 등을 작성하세요."
           style={{ whiteSpace: 'pre-wrap' }}
         />

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { getSprints } from '../lib/sprints'
 import { getMeetingsBySprintId, ensureDefaultMeetings, createMeeting, updateMeeting, deleteMeeting } from '../lib/meetings'
 import { formatDate } from '../utils/helpers'
+import { addTableRow, addTableCol, removeTableRow, removeTableCol } from '../utils/tableUtils'
 
 const MEETING_TYPE_INFO = {
   planning: { label: '계획', icon: ClipboardList, color: 'text-blue-600 bg-blue-50' },
@@ -523,6 +524,14 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
               </>
             )}
           </div>
+          <button type="button" onMouseDown={e => { e.preventDefault(); addTableRow(editorRef.current); markDirty() }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-[10px]" title="행 추가">행+</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); addTableCol(editorRef.current); markDirty() }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-[10px]" title="열 추가">열+</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); removeTableRow(editorRef.current); markDirty() }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-[10px]" title="행 삭제">행−</button>
+          <button type="button" onMouseDown={e => { e.preventDefault(); removeTableCol(editorRef.current); markDirty() }}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 text-[10px]" title="열 삭제">열−</button>
           <div className="w-px h-4 bg-gray-300 mx-1" />
           <button
             type="button"
