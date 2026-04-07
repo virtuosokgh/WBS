@@ -3,9 +3,12 @@
   "configurations": [
     {
       "name": "wbs-dev",
-      "runtimeExecutable": "/usr/local/bin/node",
-      "runtimeArgs": ["/usr/local/bin/npx", "vite", "--port", "5173"],
-      "port": 5173
+      "runtimeExecutable": "/usr/local/bin/npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5173"],
+      "port": 5173,
+      "env": {
+        "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
+      }
     }
   ]
 }
