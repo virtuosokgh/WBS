@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Trash2, ChevronDown, ChevronRight, X } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, ChevronRight, X, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { getTasks, createTask, updateTask, deleteTask, updateTaskStatus, getProjectParticipants } from '../lib/db'
 import { STATUS_OPTIONS, SPRINT_STATUS_OPTIONS, BACKLOG_STATUS, ROLE_COLORS, getStatusInfo, getPriorityInfo, formatDate, getDday } from '../utils/helpers'
 import { getActiveSprint, addTaskToSprint, removeTaskFromSprint } from '../lib/sprints'
@@ -28,6 +28,20 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
   // Filter state
   const [filterStatus, setFilterStatus] = useState('backlog')
   const [filterAssignee, setFilterAssignee] = useState('')
+
+  // Sort state
+  const [sortKey, setSortKey] = useState(null)
+  const [sortDir, setSortDir] = useState('asc')
+
+  function toggleSort(key) {
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc')
+      else { setSortKey(null); setSortDir('asc') }
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
 
   const handleSprintChange = useCallback((sprint) => {
     setViewingSprint(sprint)
@@ -149,13 +163,41 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
         children[t.parent_id].push(t)
       }
     })
+
+    // Sort root tasks (and children within each group)
+    const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 }
+    const statusOrder = Object.fromEntries(STATUS_OPTIONS.map((s, i) => [s.value, i]))
+    function sortFn(a, b) {
+      if (!sortKey) return 0
+      const mems = members
+      let cmp = 0
+      switch (sortKey) {
+        case 'name': cmp = (a.name || '').localeCompare(b.name || '', 'ko'); break
+        case 'assignee': {
+          const aName = mems.find(m => m.id === a.assignee_id)?.name || ''
+          const bName = mems.find(m => m.id === b.assignee_id)?.name || ''
+          cmp = aName.localeCompare(bName, 'ko'); break
+        }
+        case 'status': cmp = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99); break
+        case 'priority': cmp = (priorityOrder[a.priority] ?? 99) - (priorityOrder[b.priority] ?? 99); break
+        case 'startDate': cmp = (a.start_date || '').localeCompare(b.start_date || ''); break
+        case 'endDate': cmp = (a.end_date || '').localeCompare(b.end_date || ''); break
+        default: break
+      }
+      return sortDir === 'desc' ? -cmp : cmp
+    }
+    if (sortKey) {
+      roots.sort(sortFn)
+      Object.values(children).forEach(arr => arr.sort(sortFn))
+    }
+
     return {
       displayTasks: filtered,
       rootTasks: roots,
       childMap: children,
       activeFilterCount: [filterStatus && filterStatus !== 'backlog' ? filterStatus : '', filterAssignee].filter(Boolean).length,
     }
-  }, [tasks, activeSprintTaskIds, isViewingPastSprint, viewingSprint, filterStatus, filterAssignee])
+  }, [tasks, activeSprintTaskIds, isViewingPastSprint, viewingSprint, filterStatus, filterAssignee, sortKey, sortDir, members])
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
@@ -269,12 +311,12 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 40 }}>#</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500">작업명</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 120 }}>담당자</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 100 }}>상태</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 80 }}>우선순위</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 100 }}>시작일</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 100 }}>종료일</th>
+                <WbsSortTh label="작업명" sortKey="name" currentKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <WbsSortTh label="담당자" sortKey="assignee" currentKey={sortKey} dir={sortDir} onSort={toggleSort} style={{ width: 120 }} />
+                <WbsSortTh label="상태" sortKey="status" currentKey={sortKey} dir={sortDir} onSort={toggleSort} style={{ width: 100 }} />
+                <WbsSortTh label="우선순위" sortKey="priority" currentKey={sortKey} dir={sortDir} onSort={toggleSort} style={{ width: 80 }} />
+                <WbsSortTh label="시작일" sortKey="startDate" currentKey={sortKey} dir={sortDir} onSort={toggleSort} style={{ width: 100 }} />
+                <WbsSortTh label="종료일" sortKey="endDate" currentKey={sortKey} dir={sortDir} onSort={toggleSort} style={{ width: 100 }} />
                 <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ width: 60 }}>D-Day</th>
                 <th className="py-2 px-3 w-20"></th>
               </tr>
@@ -316,6 +358,26 @@ export default function WBSTable({ projectId, canEdit = true, currentUser }) {
         />
       )}
     </div>
+  )
+}
+
+function WbsSortTh({ label, sortKey, currentKey, dir, onSort, style }) {
+  const active = currentKey === sortKey
+  return (
+    <th
+      className="text-left py-2 px-3 text-xs font-semibold text-gray-500 whitespace-nowrap cursor-pointer select-none hover:text-gray-700 transition-colors group/th"
+      style={style}
+      onClick={() => onSort(sortKey)}
+    >
+      <span className="inline-flex items-center gap-0.5">
+        {label}
+        {active ? (
+          dir === 'asc' ? <ArrowUp size={12} className="text-indigo-500" /> : <ArrowDown size={12} className="text-indigo-500" />
+        ) : (
+          <ArrowUpDown size={12} className="opacity-0 group-hover/th:opacity-50 transition-opacity" />
+        )}
+      </span>
+    </th>
   )
 }
 

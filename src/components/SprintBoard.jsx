@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid, FileText, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Play, CheckCircle2, Plus, Calendar, Target, Clock, X, List, LayoutGrid, FileText, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { getSprints, createSprint, completeSprint, addTaskToSprint, removeTaskFromSprint, updateSprintDescription, updateSprint, updateSprintTaskIds, deleteSprint } from '../lib/sprints'
 import { formatDate, getStatusInfo, getPriorityInfo, getDday, STATUS_OPTIONS, SPRINT_STATUS_OPTIONS } from '../utils/helpers'
 import TableHoverControls from './TableHoverControls'
@@ -23,6 +23,27 @@ const HEADER_COLORS = {
   in_progress: 'text-blue-600',
   review: 'text-yellow-700',
   done: 'text-green-600',
+}
+
+/* -- 정렬 가능 컬럼 헤더 -- */
+function SortTh({ label, sortKey, currentKey, dir, onSort, style }) {
+  const active = currentKey === sortKey
+  return (
+    <th
+      className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap cursor-pointer select-none hover:text-gray-600 transition-colors group/th"
+      style={style}
+      onClick={() => onSort(sortKey)}
+    >
+      <span className="inline-flex items-center gap-0.5">
+        {label}
+        {active ? (
+          dir === 'asc' ? <ArrowUp size={11} className="text-indigo-500" /> : <ArrowDown size={11} className="text-indigo-500" />
+        ) : (
+          <ArrowUpDown size={11} className="opacity-0 group-hover/th:opacity-50 transition-opacity" />
+        )}
+      </span>
+    </th>
+  )
 }
 
 function SprintStatusBadge({ status }) {
@@ -51,6 +72,8 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   const [showDescModal, setShowDescModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [sortKey, setSortKey] = useState(null) // 'name' | 'assignee' | 'status' | 'priority' | 'startDate' | 'endDate'
+  const [sortDir, setSortDir] = useState('asc') // 'asc' | 'desc'
 
   const refresh = useCallback(async () => {
     const all = await getSprints(projectId)
@@ -176,6 +199,16 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
   }, [sprintTasks, currentSprint, isViewingPast])
   const sprintDoneCount = useMemo(() => sprintTasks.filter(t => t.status === 'done').length, [sprintTasks])
 
+  function toggleSort(key) {
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc')
+      else { setSortKey(null); setSortDir('asc') }
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
   // Pre-build member lookup map for O(1) access
   const memberMap = useMemo(() => {
     const map = new Map()
@@ -198,6 +231,27 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
       return { status, tasks: columnTasks }
     })
   }, [sprintTasks, memberMap])
+
+  // Sorted sprint tasks for list view
+  const sortedSprintTasks = useMemo(() => {
+    if (!sortKey) return sprintTasks
+    const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 }
+    const statusOrder = Object.fromEntries(SPRINT_STATUS_OPTIONS.map((s, i) => [s.value, i]))
+    const sorted = [...sprintTasks].sort((a, b) => {
+      let cmp = 0
+      switch (sortKey) {
+        case 'name': cmp = (a.name || '').localeCompare(b.name || '', 'ko'); break
+        case 'assignee': cmp = (memberMap.get(a.assignee_id)?.name || '').localeCompare(memberMap.get(b.assignee_id)?.name || '', 'ko'); break
+        case 'status': cmp = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99); break
+        case 'priority': cmp = (priorityOrder[a.priority] ?? 99) - (priorityOrder[b.priority] ?? 99); break
+        case 'startDate': cmp = (a.start_date || '').localeCompare(b.start_date || ''); break
+        case 'endDate': cmp = (a.end_date || '').localeCompare(b.end_date || ''); break
+        default: break
+      }
+      return sortDir === 'desc' ? -cmp : cmp
+    })
+    return sorted
+  }, [sprintTasks, sortKey, sortDir, memberMap])
 
   return (
     <div className="mb-4">
@@ -419,18 +473,18 @@ export default function SprintBoard({ projectId, canEdit, tasks, onSprintChange,
                     <table className="w-full text-xs" style={{ minWidth: '700px' }}>
                       <thead>
                         <tr className="border-b border-gray-100">
-                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400">작업명</th>
-                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 90 }}>담당자</th>
-                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 80 }}>상태</th>
-                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 60 }}>우선순위</th>
-                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 80 }}>시작일</th>
-                          <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 80 }}>종료일</th>
+                          <SortTh label="작업명" sortKey="name" currentKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                          <SortTh label="담당자" sortKey="assignee" currentKey={sortKey} dir={sortDir} onSort={toggleSort} style={{ width: 90 }} />
+                          <SortTh label="상태" sortKey="status" currentKey={sortKey} dir={sortDir} onSort={toggleSort} style={{ width: 80 }} />
+                          <SortTh label="우선순위" sortKey="priority" currentKey={sortKey} dir={sortDir} onSort={toggleSort} style={{ width: 60 }} />
+                          <SortTh label="시작일" sortKey="startDate" currentKey={sortKey} dir={sortDir} onSort={toggleSort} style={{ width: 80 }} />
+                          <SortTh label="종료일" sortKey="endDate" currentKey={sortKey} dir={sortDir} onSort={toggleSort} style={{ width: 80 }} />
                           <th className="text-left py-1.5 px-2 text-xs font-semibold text-gray-400 whitespace-nowrap" style={{ width: 50 }}>D-Day</th>
                           {canEdit && <th className="py-1.5 px-2" style={{ width: 30 }}></th>}
                         </tr>
                       </thead>
                       <tbody>
-                        {sprintTasks.map(t => {
+                        {sortedSprintTasks.map(t => {
                           const st = getStatusInfo(t.status)
                           const pr = getPriorityInfo(t.priority)
                           const assignee = memberMap.get(t.assignee_id)
