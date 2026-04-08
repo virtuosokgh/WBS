@@ -427,7 +427,7 @@ export default function GanttView({ projectId, onGoToScreen }) {
                           ? 'border-indigo-300 bg-indigo-50/30'
                           : 'border-gray-300 bg-gray-50/30'
                       }`}
-                      style={{ left: sLeft + 1, width: sWidth - 2, zIndex: 5 }}
+                      style={{ left: sLeft + 1, width: sWidth - 2, zIndex: 1 }}
                     >
                       {/* 상단 라벨 */}
                       <div className={`absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-2.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
@@ -475,8 +475,8 @@ export default function GanttView({ projectId, onGoToScreen }) {
                   return (
                     <div
                       key={task.id}
-                      className="relative border-b border-gray-100 flex items-center"
-                      style={{ height: ROW_HEIGHT, zIndex: 2 }}
+                      className="relative border-b border-gray-100 flex items-center hover:z-[100]"
+                      style={{ height: ROW_HEIGHT }}
                     >
                       <div
                         className={`absolute rounded-md ${barColor} flex items-center px-1.5 group/bar cursor-pointer`}
