@@ -34,14 +34,16 @@ function parseFromHash() {
   const hash = window.location.hash
   const tabMatch = hash.match(/[?&]tab=([^&]+)/)
   const subMatch = hash.match(/[?&]sub=([^&]+)/)
+  const meetingMatch = hash.match(/[?&]meeting=([^&]+)/)
   let tab = tabMatch ? tabMatch[1] : 'wbs'
   let sub = subMatch ? subMatch[1] : 'storyboard'
+  let meetingId = meetingMatch ? meetingMatch[1] : null
   // backward compat: ?tab=storyboard → planning/storyboard
   if (tab === 'storyboard') { tab = 'planning'; sub = 'storyboard' }
   // validate
   const validTabs = TABS.map(t => t.id)
   if (!validTabs.includes(tab)) tab = 'wbs'
-  return { tab, sub }
+  return { tab, sub, meetingId }
 }
 
 export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
@@ -342,7 +344,7 @@ export default function ProjectDetail({ projectId, user, onBack, onDeleted }) {
       {/* Content */}
       {activeTab === 'meetings' ? (
         <div className="flex-1 max-w-6xl mx-auto w-full">
-          <MeetingNotes projectId={projectId} canEdit={canEdit} />
+          <MeetingNotes projectId={projectId} canEdit={canEdit} initialMeetingId={parseFromHash().meetingId} />
         </div>
       ) : (
         <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">

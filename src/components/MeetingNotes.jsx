@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { ChevronDown, ChevronRight, Plus, Trash2, FileText, Target, ClipboardList, RefreshCw, X, Pencil, Check, Paperclip } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, Trash2, FileText, Target, ClipboardList, RefreshCw, X, Pencil, Check, Paperclip, Link2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getSprints } from '../lib/sprints'
 import { getMeetingsBySprintId, ensureDefaultMeetings, createMeeting, updateMeeting, deleteMeeting } from '../lib/meetings'
@@ -12,7 +12,7 @@ const MEETING_TYPE_INFO = {
   custom: { label: '회의', icon: FileText, color: 'text-gray-600 bg-gray-50' },
 }
 
-export default function MeetingNotes({ projectId, canEdit }) {
+export default function MeetingNotes({ projectId, canEdit, initialMeetingId }) {
   const [sprints, setSprints] = useState([])
   const [expandedSprints, setExpandedSprints] = useState({})
   const [selectedMeeting, setSelectedMeeting] = useState(null)
@@ -28,7 +28,29 @@ export default function MeetingNotes({ projectId, canEdit }) {
       const all = await getSprints(projectId)
       if (cancelled) return
       setSprints(all)
-      if (all.length > 0) {
+
+      // URL에서 회의록 ID가 있으면 해당 스프린트를 열고 회의록 선택
+      if (initialMeetingId && all.length > 0) {
+        const expanded = {}
+        let found = false
+        for (const sprint of all) {
+          const meetings = await ensureDefaultMeetings(projectId, sprint.id, sprint.name)
+          if (cancelled) return
+          setMeetingsMap(prev => ({ ...prev, [sprint.id]: meetings }))
+          const target = meetings.find(m => m.id === initialMeetingId)
+          if (target) {
+            expanded[sprint.id] = true
+            setExpandedSprints(expanded)
+            setSelectedMeeting({ ...target, sprintName: sprint.name })
+            found = true
+            break
+          }
+        }
+        if (!found && all.length > 0) {
+          const latest = all[all.length - 1]
+          setExpandedSprints({ [latest.id]: true })
+        }
+      } else if (all.length > 0) {
         const latest = all[all.length - 1]
         setExpandedSprints({ [latest.id]: true })
         const meetings = await ensureDefaultMeetings(projectId, latest.id, latest.name)
@@ -38,7 +60,7 @@ export default function MeetingNotes({ projectId, canEdit }) {
     }
     load()
     return () => { cancelled = true }
-  }, [projectId])
+  }, [projectId, initialMeetingId])
 
   async function toggleSprint(sprintId, sprintName) {
     setExpandedSprints(prev => {
@@ -215,6 +237,7 @@ export default function MeetingNotes({ projectId, canEdit }) {
             key={selectedMeeting.id}
             meeting={selectedMeeting}
             canEdit={canEdit}
+            projectId={projectId}
             onSave={(updates) => handleSaveMeeting(selectedMeeting.id, updates)}
             drafts={drafts}
             onDraftChange={(meetingId, content) => {
@@ -269,13 +292,14 @@ function TablePicker({ onInsert, onClose }) {
   )
 }
 
-function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
+function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange, projectId }) {
   const [title, setTitle] = useState(meeting.title)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [showTablePicker, setShowTablePicker] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const [saved, setSaved] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   const editorRef = useRef(null)
   const fileInputRef = useRef(null)
   const initializedRef = useRef(false)
@@ -463,6 +487,23 @@ function MeetingEditor({ meeting, canEdit, onSave, drafts, onDraftChange }) {
         ) : (
           <div className="flex items-center gap-2 group">
             <h2 className="text-lg font-bold text-gray-900">{meeting.title}</h2>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}${window.location.pathname}#/project/${projectId}?tab=meetings&meeting=${meeting.id}`
+                navigator.clipboard.writeText(url).then(() => {
+                  setLinkCopied(true)
+                  setTimeout(() => setLinkCopied(false), 2000)
+                })
+              }}
+              className={`p-1 rounded transition-all ${
+                linkCopied
+                  ? 'bg-green-50 text-green-600'
+                  : 'opacity-0 group-hover:opacity-100 hover:bg-gray-100 text-gray-400'
+              }`}
+              title="회의록 링크 복사"
+            >
+              {linkCopied ? <Check size={13} /> : <Link2 size={13} />}
+            </button>
             {canEdit && (
               <button onClick={() => setIsEditingTitle(true)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-100 text-gray-400 transition-opacity">
                 <Pencil size={13} />
